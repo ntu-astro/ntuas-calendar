@@ -1,0 +1,80 @@
+# NTUAS Calendar API
+
+A Cloudflare Worker-based API that serves an ICS calendar subscription. It utilizes a Cloudflare D1 database to store and manage calendar events, allowing users to subscribe to dynamic events seamlessly across calendar clients (like Apple Calendar, Google Calendar, Outlook). It also includes a built-in GUI admin dashboard for creating and managing events.
+
+## Features
+
+- **ICS Subscription Endpoint:** Serves a standard RFC 5545 `.ics` feed directly from the D1 database.
+- **Admin Dashboard:** A responsive web interface at `/admin` for creating, viewing, and deleting calendar events.
+- **API Endpoint:** Fetch all active events via a JSON endpoint endpoint (`/api/events`).
+- **Cloudflare D1:** Uses a serverless SQLite database for low-latency, globally distributed database queries.
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) installed
+- A [Cloudflare](https://cloudflare.com/) account
+- Cloudflare [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
+
+## Setup & Local Development
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Log in to Cloudflare:**
+   ```bash
+   npx wrangler login
+   ```
+
+3. **Create the D1 Database:**
+   ```bash
+   npx wrangler d1 create calendar_db
+   ```
+   *Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section.*
+
+4. **Initialize Database Schema:**
+   Apply the provided schema (`schema.sql`) to your local and production databases:
+   ```bash
+   # For local development
+   npx wrangler d1 execute calendar_db --local --file=./schema.sql
+
+   # For production
+   npx wrangler d1 execute calendar_db --remote --file=./schema.sql
+   ```
+   
+   *Wait! Before you can use the dashboard to add events, you must insert an initial calendar record using the ID the worker expects (`main-cal-001`):*
+   ```bash
+   # For local development
+   npx wrangler d1 execute calendar_db --local --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
+
+   # For production
+   npx wrangler d1 execute calendar_db --remote --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
+   ```
+
+5. **Set the Admin Password:**
+   In your `wrangler.jsonc`, update the `ADMIN_PASSWORD` variable. For production, it is highly recommended to set it securely via Wrangler secrets:
+   ```bash
+   npx wrangler secret put ADMIN_PASSWORD
+   ```
+
+6. **Start the local server:**
+   ```bash
+   npm run dev
+   ```
+   The application will be available at `http://localhost:8787` (or whatever port Wrangler assigns).
+
+## Deployment
+
+Deploy the worker to the Cloudflare network:
+
+```bash
+npm run deploy
+```
+
+## Usage & Endpoints
+
+- **`GET /subscribe` or `GET /calendar.ics`**: The main ICS feed URL. Add this URL to Apple Calendar, Google Calendar, or other clients to subscribe to the events.
+- **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin password set in your `wrangler.jsonc` or environment secrets.
+- **`POST /admin`**: API to programmatically insert or delete an event (requires the password).
+- **`GET /api/events`**: Returns a JSON array of all current calendar events in the database.

@@ -1,32 +1,152 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
-	</head>
-	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
-				});
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NTUAS | Club Event Calendar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #05070a;
+            --card: #11141b;
+            --accent: #4f46e5;
+            --text: #f8fafc;
+            --subtext: #94a3b8;
+        }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #05070a 100%);
+        }
+        .container {
+            text-align: center;
+            max-width: 450px;
+            padding: 2.5rem 2rem;
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid #ffffff10;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        /* Moon Widget Styling */
+        #moon-widget {
+            margin-bottom: 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 16px;
+            display: inline-block;
+        }
+        #moon-icon { font-size: 2.5rem; display: block; margin-bottom: 0.2rem; }
+        #moon-phase-name { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #818cf8; }
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
-					});
-			});
-		</script>
-	</body>
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            margin: 0.5rem 0 1rem 0;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p { color: var(--subtext); line-height: 1.6; margin-bottom: 2rem; }
+        .btn-group { display: flex; flex-direction: column; gap: 1rem; }
+        .btn {
+            display: block;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
+        }
+        .secondary-link {
+            font-size: 0.85rem;
+            color: var(--subtext);
+            background: none;
+            border: none;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="moon-widget">
+            <span id="moon-icon">🌑</span>
+            <span id="moon-phase-name">Loading Phase...</span>
+        </div>
+
+        <h1>NTUAS Events</h1>
+        <p>Subscribe to the NTU Astronomy Society calendar for club sessions and major celestial events.</p>
+        
+        <div class="btn-group">
+            <a href="webcal://my-calendar-api.ntuas-calendar.workers.dev/subscribe" class="btn">
+                Subscribe to Calendar
+            </a>
+            <button class="secondary-link" id="copyBtn">Copy Subscription URL</button>
+        </div>
+    </div>
+
+    <script>
+        // Robust Lunar Phase Calculation
+        function updateMoonPhase() {
+            try {
+                const date = new Date();
+                const lp = 2551443; // Lunar period in seconds
+                const newMoon = new Date('1970-01-07T20:35:00Z');
+                const phase = ((date.getTime() - newMoon.getTime()) / 1000) % lp;
+                const age = Math.floor(phase / (24 * 3600));
+                const fraction = phase / lp;
+
+                const phases = [
+                    { name: "New Moon", icon: "🌑" },
+                    { name: "Waxing Crescent", icon: "🌒" },
+                    { name: "First Quarter", icon: "🌓" },
+                    { name: "Waxing Gibbous", icon: "🌔" },
+                    { name: "Full Moon", icon: "🌕" },
+                    { name: "Waning Gibbous", icon: "🌖" },
+                    { name: "Last Quarter", icon: "🌗" },
+                    { name: "Waning Crescent", icon: "🌘" }
+                ];
+
+                // Determine which of the 8 phases we are in
+                const step = Math.floor(fraction * 8);
+                const current = phases[step % 8];
+
+                document.getElementById('moon-icon').innerText = current.icon;
+                document.getElementById('moon-phase-name').innerText = current.name;
+            } catch (e) {
+                console.error("Moon phase error:", e);
+                document.getElementById('moon-phase-name').innerText = "Stargazing Mode";
+            }
+        }
+
+        // Ensure the DOM is ready before running
+        window.addEventListener('DOMContentLoaded', () => {
+            updateMoonPhase();
+
+            // Copy URL Logic
+            const SUB_URL = "https://my-calendar-api.ntuas-calendar.workers.dev/subscribe";
+            const copyBtn = document.getElementById('copyBtn');
+            
+            if (copyBtn) {
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(SUB_URL).then(() => {
+                        copyBtn.innerText = "✓ URL Copied!";
+                        setTimeout(() => { copyBtn.innerText = "Copy Subscription URL"; }, 2000);
+                    });
+                });
+            }
+        });
+    </script>
+</body>
 </html>

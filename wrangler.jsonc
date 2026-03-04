@@ -4,7 +4,11 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
+	"account_id": "975178f94ce2b9f286656ea810bce986", // Insert your 32-character ID here
 	"name": "my-calendar-api",
+	"vars": {
+    "ADMIN_PASSWORD": "supersecretpassword" // Replace with your actual password
+    },
 	"main": "src/index.ts",
 	"compatibility_date": "2026-03-03",
 	"compatibility_flags": [
@@ -13,11 +17,19 @@
 	],
 	"assets": {
 		// The path to the directory containing the `index.html` file to be served at `/`
-		"directory": "./public"
+		"directory": "./public",
+		"binding": "ASSETS"
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"d1_databases": [
+    {
+      "binding": "DB", 
+      "database_name": "calendar_db", // Replace with your actual D1 name
+      "database_id": "8dc17ef6-f1fa-4871-8bd6-e70fb31ca8e3"     // Replace with your actual ID from dashboard
+    }
+  ]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

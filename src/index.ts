@@ -207,39 +207,283 @@ const ADMIN_HTML = `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NTUAS Calendar Management System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #05070a; color: #f8fafc; padding: 2rem; max-width: 900px; margin: auto; }
-    h1, h2, h3 { color: #818cf8; margin-top: 0; }
-    h3 { border-bottom: 1px solid #334155; padding-bottom: 5px; margin-top: 20px; color: #a5b4fc; font-size: 1.1rem; }
-    .panel { background: #11141b; padding: 2rem; border-radius: 12px; border: 1px solid #ffffff10; margin-bottom: 2rem; }
-    form.add-form { display: flex; flex-direction: column; gap: 15px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
-    label { font-size: 0.85rem; margin-bottom: 4px; color: #94a3b8; display: block; }
-    input, textarea, select { padding: 10px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color: white; width: 100%; box-sizing: border-box; }
-    button { background: #4f46e5; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; transition: background 0.2s; }
-    button:hover:not(:disabled) { background: #4338ca; }
-    button:disabled { background: #312e81; cursor: not-allowed; opacity: 0.7; }
-    .event-card { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1e293b; gap: 12px; }
+    :root {
+      --bg-void: #0B0E14;
+      --surface-orbital: #151A23;
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --accent-indigo: #6366F1;
+      --accent-hover: #4F46E5;
+      --highlight-gold: #FBBF24;
+      --border-dark: #222B38;
+      --success: #34D399;
+      --danger: #F87171;
+      --danger-hover: #EF4444;
+      --warning: #D97706;
+      --warning-hover: #B45309;
+    }
+
+    * { box-sizing: border-box; }
+
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-void); 
+      color: var(--text-primary); 
+      padding: 2rem; 
+      max-width: 900px; 
+      margin: auto; 
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+    }
+    
+    h1 { 
+      font-size: clamp(2rem, 4vw, 2.5rem); 
+      font-weight: 800; 
+      margin-top: 0; 
+      margin-bottom: 2rem; 
+      color: var(--text-primary);
+      letter-spacing: -0.02em; 
+    }
+    
+    h2 { 
+      font-size: 1.5rem; 
+      font-weight: 700; 
+      margin-top: 0; 
+      margin-bottom: 1.5rem; 
+    }
+    
+    h3 { 
+      font-size: 1rem; 
+      font-weight: 700; 
+      border-bottom: 1px solid var(--border-dark); 
+      padding-bottom: 0.5rem; 
+      margin-top: 2rem; 
+      margin-bottom: 1rem;
+      color: var(--text-secondary); 
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .panel { 
+      background: var(--surface-orbital); 
+      padding: 2.5rem; 
+      border-radius: 20px; 
+      border: 1px solid var(--border-dark); 
+      margin-bottom: 2rem; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+    }
+    
+    form.add-form { display: flex; flex-direction: column; gap: 1.25rem; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+    .row-3 { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+    
+    @media (min-width: 600px) {
+      .row { grid-template-columns: 1fr 1fr; }
+      .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    
+    label { 
+      font-size: 0.8125rem; 
+      font-weight: 600; 
+      margin-bottom: 0.5rem; 
+      color: var(--text-secondary); 
+      display: block; 
+    }
+    
+    input, textarea, select { 
+      padding: 0.75rem 1rem; 
+      border-radius: 8px; 
+      border: 1px solid var(--border-dark); 
+      background: rgba(255, 255, 255, 0.02); 
+      color: var(--text-primary); 
+      width: 100%; 
+      font-family: inherit;
+      font-size: 0.9375rem;
+      transition: all 0.2s;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    
+    button { 
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-indigo); 
+      color: white; 
+      padding: 0.875rem 1.5rem; 
+      border: none; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      font-size: 1rem;
+      width: 100%; 
+      margin-top: 1rem; 
+      transition: all 0.2s ease; 
+      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.2);
+    }
+    
+    button:hover:not(:disabled) { 
+      background: var(--accent-hover); 
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+    }
+    
+    button:disabled { 
+      background: rgba(99, 102, 241, 0.4); 
+      cursor: not-allowed; 
+      box-shadow: none;
+      transform: none;
+    }
+    
+    .event-card { 
+      display: flex; 
+      flex-direction: column;
+      background: transparent; 
+      padding: 1.5rem 0; 
+      margin-bottom: 0; 
+      border-bottom: 1px solid var(--border-dark); 
+      gap: 1rem; 
+    }
+
+    .event-card:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    @media (min-width: 650px) {
+      .event-card {
+        flex-direction: row;
+        justify-content: space-between; 
+        align-items: center; 
+      }
+    }
+    
     .event-info { flex-grow: 1; min-width: 0; }
-    .event-info strong { display: block; word-break: break-word; }
-    .event-card form { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin: 0; }
-    .btn-delete { background: #e11d48; padding: 8px 15px; width: auto; margin-top: 0; }
-    .btn-delete:hover:not(:disabled) { background: #be123c; }
-    .btn-edit { background: #d97706; padding: 8px 15px; width: auto; margin-top: 0; }
-    .btn-edit:hover:not(:disabled) { background: #b45309; }
-    .del-pass { width: 140px; }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .event-info strong { 
+      display: block; 
+      font-size: 1.05rem; 
+      font-weight: 600; 
+      margin-bottom: 0.25rem;
+      color: var(--text-primary);
+    }
+    
+    .event-status {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+      color: var(--text-secondary);
+    }
+
+    .event-card form { 
+      flex-shrink: 0; 
+      display: flex; 
+      align-items: center; 
+      gap: 0.75rem; 
+      margin: 0; 
+    }
+    
+    .btn-delete { 
+      background: var(--danger); 
+      padding: 0.6rem 1rem; 
+      width: auto; 
+      margin-top: 0; 
+      font-size: 0.875rem;
+      box-shadow: none;
+    }
+    
+    .btn-delete:hover:not(:disabled) { 
+      background: var(--danger-hover); 
+      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+    }
+    
+    .btn-edit { 
+      background: transparent; 
+      border: 1px solid var(--border-dark);
+      color: var(--text-secondary);
+      padding: 0.6rem 1rem; 
+      width: auto; 
+      margin-top: 0;
+      font-size: 0.875rem;
+      box-shadow: none;
+    }
+    
+    .btn-edit:hover:not(:disabled) { 
+      background: rgba(255,255,255,0.05); 
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .del-pass { width: 140px; padding: 0.6rem 0.75rem; }
+    
+    .modal-overlay { 
+      display: none; 
+      position: fixed; 
+      inset: 0; 
+      background: rgba(0, 0, 0, 0.75); 
+      backdrop-filter: blur(4px);
+      z-index: 1000; 
+      align-items: center; 
+      justify-content: center; 
+    }
+    
     .modal-overlay.open { display: flex; }
-    .modal { background: #11141b; border: 1px solid #ffffff15; border-radius: 16px; padding: 2rem; width: 90%; max-width: 520px; position: relative; }
+    
+    .modal { 
+      background: var(--surface-orbital); 
+      border: 1px solid var(--border-dark); 
+      border-radius: 20px; 
+      padding: 2.5rem; 
+      width: 90%; 
+      max-width: 520px; 
+      position: relative; 
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
     .modal h2 { margin-top: 0; }
-    .modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; width: auto; padding: 4px 8px; margin: 0; }
-    .modal-close:hover { color: #fff; background: none; }
-    .modal form { display: flex; flex-direction: column; gap: 12px; }
+    
+    .modal-close { 
+      position: absolute; 
+      top: 1.25rem; 
+      right: 1.25rem; 
+      background: none; 
+      border: none; 
+      color: var(--text-secondary); 
+      font-size: 1.5rem; 
+      cursor: pointer; 
+      width: auto; 
+      padding: 0.25rem 0.5rem; 
+      margin: 0; 
+      box-shadow: none;
+    }
+    
+    .modal-close:hover { 
+      color: var(--text-primary); 
+      background: rgba(255,255,255,0.05); 
+      border-radius: 6px;
+      transform: none;
+    }
+    
+    .modal form { display: flex; flex-direction: column; gap: 1.25rem; }
   </style>
 </head>
 <body>
-  <h1>NTUAS Calendar Management System</h1>
+  <h1>Admin Dashboard</h1>
   
   <div class="panel">
     <h2>Create Comprehensive Event</h2>
@@ -451,8 +695,8 @@ const ADMIN_HTML = `
                 return \`
                   <div class="event-card">
                     <div class="event-info">
-                      <strong>\${e.summary}</strong> <span style="font-size: 0.8rem; color: #94a3b8;">(\${e.status})</span><br>
-                      <small>Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
+                      <strong>\${e.summary}</strong> <span class="event-status">\${e.status}</span><br>
+                      <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
                     </div>
                     <button class="btn-edit" data-uid="\${e.uid}" data-summary="\${(e.summary || '').replace(/"/g, '&quot;')}" data-dtstart="\${e.dtstart}" data-dtend="\${e.dtend || ''}" data-status="\${e.status}">Edit</button>
                     <form onsubmit="handleDelete(event, '\${e.uid}')">

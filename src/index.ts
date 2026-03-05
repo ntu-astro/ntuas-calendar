@@ -454,13 +454,20 @@ const ADMIN_HTML = `
                       <strong>\${e.summary}</strong> <span style="font-size: 0.8rem; color: #94a3b8;">(\${e.status})</span><br>
                       <small>Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
                     </div>
-                    <button class="btn-edit" onclick="openEditModal('\${e.uid}', \${JSON.stringify(e.summary).replace(/'/g, '&#39;')}, '\${e.dtstart}', '\${e.dtend || ''}', '\${e.status}')">Edit</button>
+                    <button class="btn-edit" data-uid="\${e.uid}" data-summary="\${(e.summary || '').replace(/"/g, '&quot;')}" data-dtstart="\${e.dtstart}" data-dtend="\${e.dtend || ''}" data-status="\${e.status}">Edit</button>
                     <form onsubmit="handleDelete(event, '\${e.uid}')">
                       <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
                     </form>
                   </div>\`;
             }).join('');
+
+            // Attach edit button handlers
+            container.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openEditModal(btn.dataset.uid, btn.dataset.summary, btn.dataset.dtstart, btn.dataset.dtend, btn.dataset.status);
+                });
+            });
         } catch (err) { document.getElementById('events-container').innerHTML = '<p style="color:red;">Error loading events.</p>'; }
     }
 

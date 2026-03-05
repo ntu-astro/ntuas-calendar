@@ -493,17 +493,15 @@
 
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-            // Previous month
+            // Empty spacers for days before the 1st
             for (let i = 0; i < firstDay; i++) {
-                const dayEl = document.createElement('div');
-                dayEl.className = 'calendar-day';
-                dayEl.innerText = daysInPrevMonth - firstDay + i + 1;
-                grid.appendChild(dayEl);
+                const spacer = document.createElement('div');
+                spacer.className = 'calendar-day';
+                grid.appendChild(spacer);
             }
 
-            // Current month
+            // Current month days only
             for (let i = 1; i <= daysInMonth; i++) {
                 const dayEl = document.createElement('div');
                 dayEl.className = 'calendar-day current-month';
@@ -527,21 +525,11 @@
                 } else {
                     dayEl.addEventListener('click', () => {
                         clearEventDetails();
-                        // Highlight the clicked non-event day
                         document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
                         dayEl.classList.add('selected');
                     });
                 }
 
-                dayEl.innerText = i;
-                grid.appendChild(dayEl);
-            }
-
-            // Next month (fill up to 42 cells)
-            const remainingCells = 42 - (firstDay + daysInMonth);
-            for (let i = 1; i <= remainingCells; i++) {
-                const dayEl = document.createElement('div');
-                dayEl.className = 'calendar-day';
                 dayEl.innerText = i;
                 grid.appendChild(dayEl);
             }

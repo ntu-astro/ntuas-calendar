@@ -98,6 +98,20 @@ export default {
                 .bind(uid, formData.get("alarm_action") as string || "DISPLAY", alarmTrigger, formData.get("alarm_desc") as string || "Event Reminder").run();
             }
           }
+          else if (action === "update") {
+            const uid = formData.get("uid") as string;
+            const summary = formData.get("summary") as string;
+            const dtstart = toIcsDate(formData.get("dtstart") as string);
+            const dtend = toIcsDate(formData.get("dtend") as string);
+            const status = formData.get("status") as string || "CONFIRMED";
+            const nowIcs = toIcsDate(new Date().toISOString());
+
+            await env.DB.prepare(`
+              UPDATE events
+              SET summary = ?, dtstart = ?, dtend = ?, status = ?, last_modified = ?, sequence = sequence + 1
+              WHERE uid = ?
+            `).bind(summary, dtstart, dtend, status, nowIcs, uid).run();
+          }
           else if (action === "delete") {
             const uid = formData.get("uid") as string;
             await env.DB.prepare("DELETE FROM events WHERE uid = ?").bind(uid).run();
@@ -212,7 +226,16 @@ const ADMIN_HTML = `
     .event-card form { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin: 0; }
     .btn-delete { background: #e11d48; padding: 8px 15px; width: auto; margin-top: 0; }
     .btn-delete:hover:not(:disabled) { background: #be123c; }
+    .btn-edit { background: #d97706; padding: 8px 15px; width: auto; margin-top: 0; }
+    .btn-edit:hover:not(:disabled) { background: #b45309; }
     .del-pass { width: 140px; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #11141b; border: 1px solid #ffffff15; border-radius: 16px; padding: 2rem; width: 90%; max-width: 520px; position: relative; }
+    .modal h2 { margin-top: 0; }
+    .modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; width: auto; padding: 4px 8px; margin: 0; }
+    .modal-close:hover { color: #fff; background: none; }
+    .modal form { display: flex; flex-direction: column; gap: 12px; }
   </style>
 </head>
 <body>
@@ -333,6 +356,46 @@ const ADMIN_HTML = `
     <div id="events-container"><p>Loading events...</p></div>
   </div>
 
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      <h2>Edit Event</h2>
+      <form id="editForm" onsubmit="handleEdit(event)">
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="uid" id="edit-uid">
+        <div>
+          <label>Event Title (Summary)*</label>
+          <input type="text" name="summary" id="edit-summary" required>
+        </div>
+        <div class="row">
+          <div>
+            <label>Start Date &amp; Time*</label>
+            <input type="datetime-local" id="edit-local-start" required>
+            <input type="hidden" name="dtstart" id="edit-iso-start">
+          </div>
+          <div>
+            <label>End Date &amp; Time</label>
+            <input type="datetime-local" id="edit-local-end">
+            <input type="hidden" name="dtend" id="edit-iso-end">
+          </div>
+        </div>
+        <div>
+          <label>Status</label>
+          <select name="status" id="edit-status">
+            <option value="CONFIRMED">CONFIRMED</option>
+            <option value="TENTATIVE">TENTATIVE</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+        </div>
+        <div>
+          <label>Admin Password*</label>
+          <input type="password" name="password" id="edit-password" required>
+        </div>
+        <button type="submit" id="editSubmitBtn">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
   <script>
     const COORDS = { NORTH_SPINE: "1.3473;103.6803", SOUTH_SPINE: "1.3428;103.6824", THE_HIVE: "1.3436;103.6823", THE_ARC: "1.3461;103.6802", WKWSCI: "1.3438;103.6818" };
     const venues = [
@@ -391,6 +454,7 @@ const ADMIN_HTML = `
                       <strong>\${e.summary}</strong> <span style="font-size: 0.8rem; color: #94a3b8;">(\${e.status})</span><br>
                       <small>Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
                     </div>
+                    <button class="btn-edit" onclick="openEditModal('\${e.uid}', \${JSON.stringify(e.summary).replace(/'/g, '&#39;')}, '\${e.dtstart}', '\${e.dtend || ''}', '\${e.status}')">Edit</button>
                     <form onsubmit="handleDelete(event, '\${e.uid}')">
                       <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
@@ -438,6 +502,56 @@ const ADMIN_HTML = `
         } catch (err) { alert("Network Error"); }
         finally { btn.disabled = false; }
     }
+
+    function openEditModal(uid, summary, dtstart, dtend, status) {
+        document.getElementById('edit-uid').value = uid;
+        document.getElementById('edit-summary').value = summary;
+        document.getElementById('edit-status').value = status;
+
+        // Convert ICS date (e.g. 20260315T100000Z) to datetime-local format
+        function icsToLocal(icsDate) {
+            if (!icsDate) return '';
+            const iso = icsDate.replace(/(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+            const d = new Date(iso);
+            // Format as local datetime-local value in SGT (+8)
+            const offset = d.getTimezoneOffset();
+            const local = new Date(d.getTime() - offset * 60000);
+            return local.toISOString().slice(0, 16);
+        }
+        document.getElementById('edit-local-start').value = icsToLocal(dtstart);
+        document.getElementById('edit-local-end').value = icsToLocal(dtend);
+
+        document.getElementById('editModal').classList.add('open');
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('open');
+        document.getElementById('editForm').reset();
+    }
+
+    async function handleEdit(e) {
+        e.preventDefault();
+        const btn = document.getElementById('editSubmitBtn');
+        btn.innerText = 'Saving...'; btn.disabled = true;
+
+        const start = document.getElementById('edit-local-start').value;
+        const end = document.getElementById('edit-local-end').value;
+        document.getElementById('edit-iso-start').value = start ? start + '+08:00' : '';
+        document.getElementById('edit-iso-end').value = end ? end + '+08:00' : '';
+
+        try {
+            const res = await fetch('/admin', { method: 'POST', body: new FormData(document.getElementById('editForm')) });
+            const data = await res.json();
+            if (!data.success) alert('Error: ' + data.error);
+            else { closeEditModal(); loadEvents(); }
+        } catch (err) { alert('Network Error'); }
+        finally { btn.innerText = 'Save Changes'; btn.disabled = false; }
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('editModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal();
+    });
 
     document.addEventListener('DOMContentLoaded', () => { initVenues(); loadEvents(); });
   </script>

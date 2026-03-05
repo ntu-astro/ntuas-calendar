@@ -118,13 +118,16 @@ export default {
             const dtstart = toIcsDate(formData.get("dtstart") as string);
             const dtend = toIcsDate(formData.get("dtend") as string);
             const status = formData.get("status") as string || "CONFIRMED";
+            const location = formData.get("location") as string || null;
+            const geo = formData.get("geo") as string || null;
+            const description = formData.get("description") as string || null;
             const nowIcs = toIcsDate(new Date().toISOString());
 
             await env.DB.prepare(`
               UPDATE events
-              SET summary = ?, dtstart = ?, dtend = ?, status = ?, last_modified = ?, sequence = sequence + 1
+              SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?, last_modified = ?, sequence = sequence + 1
               WHERE uid = ?
-            `).bind(summary, dtstart, dtend, status, nowIcs, uid).run();
+            `).bind(summary, dtstart, dtend, status, location, geo, description, nowIcs, uid).run();
           }
           else if (action === "delete") {
             const uid = formData.get("uid") as string;
@@ -678,8 +681,27 @@ const ADMIN_HTML = `
         </div>
         <div>
           <label>Admin Password*</label>
-          <input type="password" name="password" id="edit-password" required>
+          <input type="password" name="password" id="edit-password" required autocomplete="current-password">
         </div>
+
+        <div id="edit-more-details" style="display: none; border-top: 1px solid var(--border-dark); padding-top: 1rem; margin-top: 0.5rem;">
+          <div class="row">
+            <div>
+              <label>Location</label>
+              <input list="ntu-venues" name="location" id="edit-location" placeholder="e.g. LKC-LT...">
+            </div>
+            <div>
+              <label>Geo (Lat;Lon)</label>
+              <input type="text" name="geo" id="edit-geo" placeholder="Auto-fills from location">
+            </div>
+          </div>
+          <div style="margin-top: 1.25rem;">
+            <label>Description</label>
+            <textarea name="description" id="edit-description" rows="3"></textarea>
+          </div>
+        </div>
+
+        <button type="button" id="editMoreBtn" onclick="toggleMoreDetails()" style="background: transparent; border: 1px solid var(--border-dark); color: var(--text-secondary); margin-top: 0; box-shadow: none;">Show More Details</button>
         <button type="submit" id="editSubmitBtn">Save Changes</button>
       </form>
     </div>
@@ -758,7 +780,16 @@ const ADMIN_HTML = `
                       <strong>\${e.summary}</strong> <span class="event-status">\${e.status}</span><br>
                       <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
                     </div>
-                    <button class="btn-edit" data-uid="\${e.uid}" data-summary="\${(e.summary || '').replace(/"/g, '&quot;')}" data-dtstart="\${e.dtstart}" data-dtend="\${e.dtend || ''}" data-status="\${e.status}">Edit</button>
+                    <button class="btn-edit" 
+                      data-uid="\${e.uid}" 
+                      data-summary="\${(e.summary || '').replace(/"/g, '&quot;')}" 
+                      data-dtstart="\${e.dtstart}" 
+                      data-dtend="\${e.dtend || ''}" 
+                      data-status="\${e.status}"
+                      data-location="\${(e.location || '').replace(/"/g, '&quot;')}"
+                      data-geo="\${e.geo || ''}"
+                      data-description="\${(e.description || '').replace(/"/g, '&quot;')}"
+                    >Edit</button>
                     <form onsubmit="handleDelete(event, '\${e.uid}')">
                       <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
@@ -779,7 +810,16 @@ const ADMIN_HTML = `
         // Attach edit button handlers
         container.querySelectorAll('.btn-edit').forEach(btn => {
             btn.addEventListener('click', () => {
-                openEditModal(btn.dataset.uid, btn.dataset.summary, btn.dataset.dtstart, btn.dataset.dtend, btn.dataset.status);
+                openEditModal(
+                  btn.dataset.uid, 
+                  btn.dataset.summary, 
+                  btn.dataset.dtstart, 
+                  btn.dataset.dtend, 
+                  btn.dataset.status,
+                  btn.dataset.location,
+                  btn.dataset.geo,
+                  btn.dataset.description
+                );
             });
         });
     }
@@ -828,10 +868,17 @@ const ADMIN_HTML = `
         finally { btn.disabled = false; }
     }
 
-    function openEditModal(uid, summary, dtstart, dtend, status) {
+    function openEditModal(uid, summary, dtstart, dtend, status, location, geo, description) {
         document.getElementById('edit-uid').value = uid;
         document.getElementById('edit-summary').value = summary;
         document.getElementById('edit-status').value = status;
+        document.getElementById('edit-location').value = location || '';
+        document.getElementById('edit-geo').value = geo || '';
+        document.getElementById('edit-description').value = description || '';
+
+        // Reset more details toggle
+        document.getElementById('edit-more-details').style.display = 'none';
+        document.getElementById('editMoreBtn').innerText = 'Show More Details';
 
         // Convert ICS date (e.g. 20260315T100000Z) to datetime-local format
         function icsToLocal(icsDate) {
@@ -854,6 +901,18 @@ const ADMIN_HTML = `
         document.getElementById('editForm').reset();
     }
 
+    window.toggleMoreDetails = function() {
+        const div = document.getElementById('edit-more-details');
+        const btn = document.getElementById('editMoreBtn');
+        if (div.style.display === 'none') {
+            div.style.display = 'block';
+            btn.innerText = 'Hide More Details';
+        } else {
+            div.style.display = 'none';
+            btn.innerText = 'Show More Details';
+        }
+    };
+
     async function handleEdit(e) {
         e.preventDefault();
         const btn = document.getElementById('editSubmitBtn');
@@ -872,6 +931,12 @@ const ADMIN_HTML = `
         } catch (err) { alert('Network Error'); }
         finally { btn.innerText = 'Save Changes'; btn.disabled = false; }
     }
+
+    // Link location to geo in edit modal
+    document.getElementById('edit-location').addEventListener('input', (e) => {
+        const match = venues.find(v => v.name === e.target.value);
+        if (match) document.getElementById('edit-geo').value = match.geo;
+    });
 
     // Close modal on backdrop click
     document.getElementById('editModal').addEventListener('click', function(e) {

@@ -465,6 +465,13 @@
             flex-direction: column;
             padding: 1rem 0;
             border-bottom: 1px solid var(--border-dark);
+            cursor: pointer;
+            transition: background-color 0.2s ease, padding-left 0.2s ease;
+        }
+
+        .event-item:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+            padding-left: 0.5rem;
         }
 
         .event-item:first-child {
@@ -757,12 +764,38 @@
                 return;
             }
 
-            list.innerHTML = upcoming.map(e => `
-                <div class="event-item">
+            list.innerHTML = upcoming.map((e, index) => {
+                const dateAria = e.parsedDate.toISOString();
+                return `
+                <div class="event-item" data-date="${escapeHTML(dateAria)}">
                     <div class="event-date">${e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     <div class="event-title">${escapeHTML(e.summary || 'Untitled Event')}</div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
+
+            // Attach click listeners to upcoming events
+            document.querySelectorAll('.event-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    const rawDate = this.getAttribute('data-date');
+                    if (!rawDate) return;
+
+                    const eventDate = new Date(rawDate);
+
+                    // Switch calendar to that month/year
+                    currentDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
+                    renderCalendar();
+
+                    // Delay slightly to let the grid render, then trigger the click
+                    setTimeout(() => {
+                        const targetDateStr = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
+                        showEventDetails(targetDateStr);
+
+                        // Scroll to panel
+                        document.getElementById('eventDetailPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 50);
+                });
+            });
         }
 
         function escapeHTML(str) {

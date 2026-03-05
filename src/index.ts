@@ -282,8 +282,9 @@ const ADMIN_HTML = `
     .row-3 { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
     
     @media (min-width: 600px) {
-      .row { grid-template-columns: 1fr 1fr; }
-      .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+      .add-form .row { grid-template-columns: 1fr 1fr; }
+      .add-form .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+      .modal form .row { grid-template-columns: 1fr !important; } /* Force single column in modal to prevent overflow */
     }
     
     label { 
@@ -301,6 +302,8 @@ const ADMIN_HTML = `
       background: rgba(255, 255, 255, 0.02); 
       color: var(--text-primary); 
       width: 100%; 
+      max-width: 100%; /* Ensure it does not overflow */
+      box-sizing: border-box; /* Ensure padding doesn't push it out */
       font-family: inherit;
       font-size: 0.9375rem;
       transition: all 0.2s;

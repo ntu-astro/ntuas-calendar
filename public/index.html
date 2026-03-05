@@ -315,9 +315,9 @@
 
         /* Event Detail Panel */
         #eventDetailPanel {
-            max-height: 0;
+            height: 0;
             overflow: hidden;
-            transition: max-height 0.35s ease, padding 0.35s ease, margin 0.35s ease;
+            transition: height 0.35s ease, padding 0.35s ease, margin 0.35s ease;
             background: transparent;
             border: 1px solid transparent;
             border-radius: 16px;
@@ -325,11 +325,12 @@
         }
 
         #eventDetailPanel.open {
-            max-height: 800px;
+            height: 280px;
             padding: 1.5rem;
             margin-top: 1.5rem;
             border-color: var(--border-dark);
             background: rgba(34, 43, 56, 0.3);
+            overflow-y: auto;
             /* slightly darker background inset */
         }
 
@@ -404,6 +405,8 @@
 
         .detail-value {
             color: var(--text-primary);
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .detail-value a {

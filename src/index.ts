@@ -206,11 +206,13 @@ const ADMIN_HTML = `
     button { background: #4f46e5; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; transition: background 0.2s; }
     button:hover:not(:disabled) { background: #4338ca; }
     button:disabled { background: #312e81; cursor: not-allowed; opacity: 0.7; }
-    .event-card { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1e293b; }
-    .event-info { flex-grow: 1; }
-    .btn-delete { background: #e11d48; padding: 8px 15px; width: auto; margin-top: 0; margin-left: 10px; }
+    .event-card { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #1e293b; gap: 12px; }
+    .event-info { flex-grow: 1; min-width: 0; }
+    .event-info strong { display: block; word-break: break-word; }
+    .event-card form { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin: 0; }
+    .btn-delete { background: #e11d48; padding: 8px 15px; width: auto; margin-top: 0; }
     .btn-delete:hover:not(:disabled) { background: #be123c; }
-    .del-pass { width: 150px; display: inline-block; }
+    .del-pass { width: 140px; }
   </style>
 </head>
 <body>
@@ -226,15 +228,15 @@ const ADMIN_HTML = `
         <div><label>Event Title (Summary)*</label><input type="text" name="summary" required></div>
       </div>
 
-      <h3>Date & Time</h3>
+      <h3>Date &amp; Time</h3>
       <div class="row">
         <div>
-          <label>Start Date & Time (Local)*</label>
+          <label>Start Date &amp; Time (Local)*</label>
           <input type="datetime-local" id="localStart" required>
           <input type="hidden" name="dtstart" id="isoStart">
         </div>
         <div>
-          <label>End Date & Time (Local)</label>
+          <label>End Date &amp; Time (Local)</label>
           <input type="datetime-local" id="localEnd">
           <input type="hidden" name="dtend" id="isoEnd">
         </div>
@@ -306,7 +308,7 @@ const ADMIN_HTML = `
         <textarea name="description" rows="3"></textarea>
       </div>
 
-      <h3>Alarms & Attachments (Optional)</h3>
+      <h3>Alarms &amp; Attachments (Optional)</h3>
       <div class="row">
         <div><label>Alarm Trigger</label><input type="text" name="alarm_trigger" placeholder="-PT15M"></div>
         <div>
@@ -389,7 +391,7 @@ const ADMIN_HTML = `
                       <strong>\${e.summary}</strong> <span style="font-size: 0.8rem; color: #94a3b8;">(\${e.status})</span><br>
                       <small>Starts: \${new Date(dt).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}</small>
                     </div>
-                    <form onsubmit="handleDelete(event, '\${e.uid}')" style="margin: 0;">
+                    <form onsubmit="handleDelete(event, '\${e.uid}')">
                       <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
                     </form>

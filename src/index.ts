@@ -1,6 +1,6 @@
 export interface Env {
   DB: D1Database;
-  ADMIN_PASSWORD: string; 
+  ADMIN_PASSWORD: string;
 }
 
 const fold = (line: string): string => {
@@ -34,7 +34,7 @@ export default {
     // 2. ADMIN DASHBOARD & API
     // ==========================================
     if (url.pathname === "/admin") {
-      
+
       if (request.method === "GET") {
         return new Response(ADMIN_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
       }
@@ -52,7 +52,7 @@ export default {
           if (action === "add") {
             const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
             const nowIcs = toIcsDate(new Date().toISOString());
-            
+
             const dtstart = toIcsDate(formData.get("dtstart") as string);
             const dtend = toIcsDate(formData.get("dtend") as string);
             const summary = formData.get("summary") as string;
@@ -64,12 +64,12 @@ export default {
             const eventClass = formData.get("class") as string || "PUBLIC";
             const status = formData.get("status") as string || "CONFIRMED";
             const eventUrl = formData.get("url") as string;
-            
+
             // --- NEW ORGANIZER FORMATTING LOGIC ---
             const orgName = formData.get("organizer_name") as string;
             const orgEmail = formData.get("organizer_email") as string;
             let organizer = null;
-            
+
             if (orgName && orgEmail) {
               organizer = `;CN=${orgName}:mailto:${orgEmail}`;
             } else if (orgEmail) {
@@ -82,7 +82,7 @@ export default {
                 summary, description, location, transp, geo, categories, class, status, url, organizer
               ) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
-              uid, nowIcs, nowIcs, nowIcs, dtstart, dtend, 
+              uid, nowIcs, nowIcs, nowIcs, dtstart, dtend,
               summary, description, location, transp, geo, categories, eventClass, status, eventUrl, organizer
             ).run();
 
@@ -97,7 +97,7 @@ export default {
               await env.DB.prepare("INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES (?, ?, ?, ?)")
                 .bind(uid, formData.get("alarm_action") as string || "DISPLAY", alarmTrigger, formData.get("alarm_desc") as string || "Event Reminder").run();
             }
-          } 
+          }
           else if (action === "delete") {
             const uid = formData.get("uid") as string;
             await env.DB.prepare("DELETE FROM events WHERE uid = ?").bind(uid).run();
@@ -143,10 +143,10 @@ export default {
         if (event.geo) icsLines.push(`GEO:${event.geo}`);
         if (event.categories) icsLines.push(`CATEGORIES:${event.categories}`);
         if (event.url) icsLines.push(`URL:${event.url}`);
-        
+
         // --- ORGANIZER INJECTION ---
         if (event.organizer) icsLines.push(`ORGANIZER${event.organizer}`);
-        
+
         icsLines.push(`CLASS:${event.class || "PUBLIC"}`);
         icsLines.push(`STATUS:${event.status || "CONFIRMED"}`);
         icsLines.push(`TRANSP:${event.transp || "OPAQUE"}`);
@@ -192,7 +192,7 @@ const ADMIN_HTML = `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NTUAS Event Manager</title>
+  <title>NTUAS Calendar Management System</title>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #05070a; color: #f8fafc; padding: 2rem; max-width: 900px; margin: auto; }
     h1, h2, h3 { color: #818cf8; margin-top: 0; }
@@ -214,7 +214,7 @@ const ADMIN_HTML = `
   </style>
 </head>
 <body>
-  <h1>NTUAS Command Center</h1>
+  <h1>NTUAS Calendar Management System</h1>
   
   <div class="panel">
     <h2>Create Comprehensive Event</h2>
@@ -286,14 +286,14 @@ const ADMIN_HTML = `
       </div>
 
       <div class="row">
-        <div><label>Categories</label><input type="text" name="categories" placeholder="e.g. MEETING,ASTRONOMY"></div>
+        <div><label>Categories</label><input type="text" name="categories" placeholder="e.g. Club Events,Astronomical Events"></div>
         <div><label>URL / Web Link</label><input type="url" name="url" placeholder="https://..."></div>
       </div>
       
       <div class="row">
         <div>
           <label>Organizer Name</label>
-          <input type="text" name="organizer_name" placeholder="e.g. NTUAS Secretary">
+          <input type="text" name="organizer_name" placeholder="e.g. NTUAS">
         </div>
         <div>
           <label>Organizer Email</label>

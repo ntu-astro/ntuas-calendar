@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NTUAS | Club Event Calendar</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --bg: #05070a;
@@ -13,6 +16,7 @@
             --text: #f8fafc;
             --subtext: #94a3b8;
         }
+
         body {
             margin: 0;
             font-family: 'Inter', sans-serif;
@@ -24,6 +28,7 @@
             min-height: 100vh;
             background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #05070a 100%);
         }
+
         .container {
             text-align: center;
             max-width: 450px;
@@ -33,6 +38,7 @@
             border: 1px solid #ffffff10;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
+
         /* Moon Widget Styling */
         #moon-widget {
             margin-bottom: 1.5rem;
@@ -41,8 +47,20 @@
             border-radius: 16px;
             display: inline-block;
         }
-        #moon-icon { font-size: 2.5rem; display: block; margin-bottom: 0.2rem; }
-        #moon-phase-name { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #818cf8; }
+
+        #moon-icon {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        #moon-phase-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #818cf8;
+        }
 
         h1 {
             font-family: 'Space Grotesk', sans-serif;
@@ -52,8 +70,19 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        p { color: var(--subtext); line-height: 1.6; margin-bottom: 2rem; }
-        .btn-group { display: flex; flex-direction: column; gap: 1rem; }
+
+        p {
+            color: var(--subtext);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
         .btn {
             display: block;
             background: var(--accent);
@@ -64,10 +93,12 @@
             font-weight: 700;
             transition: all 0.2s ease;
         }
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
         }
+
         .secondary-link {
             font-size: 0.85rem;
             color: var(--subtext);
@@ -78,6 +109,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div id="moon-widget">
@@ -87,9 +119,9 @@
 
         <h1>NTUAS Events</h1>
         <p>Subscribe to the NTU Astronomy Society calendar for club sessions and major celestial events.</p>
-        
+
         <div class="btn-group">
-            <a href="webcal://my-calendar-api.ntuas-calendar.workers.dev/subscribe" class="btn">
+            <a href="webcal://calendar.ntuas.com/subscribe" class="btn">
                 Subscribe to Calendar
             </a>
             <button class="secondary-link" id="copyBtn">Copy Subscription URL</button>
@@ -135,9 +167,9 @@
             updateMoonPhase();
 
             // Copy URL Logic
-            const SUB_URL = "https://my-calendar-api.ntuas-calendar.workers.dev/subscribe";
+            const SUB_URL = "https://calendar.ntuas.com/subscribe";
             const copyBtn = document.getElementById('copyBtn');
-            
+
             if (copyBtn) {
                 copyBtn.addEventListener('click', () => {
                     navigator.clipboard.writeText(SUB_URL).then(() => {
@@ -149,4 +181,5 @@
         });
     </script>
 </body>
+
 </html>

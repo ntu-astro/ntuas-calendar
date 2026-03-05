@@ -572,6 +572,30 @@
         let eventsData = [];
         let selectedDateStr = null;
 
+        // Helper: parse dtstart in either YYYYMMDD (all-day) or YYYYMMDDTHHMMSSz (timed) format
+        function parseDtstart(dtstart) {
+            if (!dtstart) return null;
+            if (dtstart.includes('T')) {
+                // Timed: 20260315T100000Z
+                const iso = dtstart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+                return new Date(iso);
+            } else {
+                // All-day: 20260315
+                const y = dtstart.slice(0, 4), m = dtstart.slice(4, 6), d = dtstart.slice(6, 8);
+                return new Date(y + '-' + m + '-' + d + 'T00:00:00');
+            }
+        }
+
+        function dtToDateStr(dtstart) {
+            if (!dtstart) return null;
+            if (dtstart.includes('T')) {
+                return dtstart.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
+            } else {
+                const y = dtstart.slice(0, 4), m = dtstart.slice(4, 6), d = dtstart.slice(6, 8);
+                return y + '-' + m + '-' + d;
+            }
+        }
+
         async function initCalendar() {
             try {
                 // Fetch events
@@ -647,8 +671,7 @@
                 const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const hasEvent = eventsData.some(e => {
                     if (!e.dtstart) return false;
-                    const dt = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
-                    return dt === currentDayStr;
+                    return dtToDateStr(e.dtstart) === currentDayStr;
                 });
 
                 if (hasEvent) {
@@ -680,9 +703,10 @@
 
             // Filter and sort upcoming (dtstart >= now)
             const upcoming = eventsData.map(e => {
-                const dtStr = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
-                return { ...e, parsedDate: new Date(dtStr) };
+                const parsed = parseDtstart(e.dtstart);
+                return { ...e, parsedDate: parsed, isAllDay: e.dtstart && !e.dtstart.includes('T') };
             })
+                .filter(e => e.parsedDate) // skip unparseable
                 // Filter future events or ones happening today
                 .filter(e => {
                     const eventDay = new Date(e.parsedDate);
@@ -701,9 +725,12 @@
 
             list.innerHTML = upcoming.map((e, index) => {
                 const dateAria = e.parsedDate.toISOString();
+                const dateDisplay = e.isAllDay
+                    ? e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }) + ' (All Day)'
+                    : e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 return `
                 <div class="event-item" data-date="${escapeHTML(dateAria)}">
-                    <div class="event-date">${e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="event-date">${dateDisplay}</div>
                     <div class="event-title">${escapeHTML(e.summary || 'Untitled Event')}</div>
                 </div>
                 `;
@@ -765,17 +792,15 @@
             // Find matching events
             const dayEvents = eventsData.filter(e => {
                 if (!e.dtstart) return false;
-                const dt = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
-                return dt === dateStr;
+                return dtToDateStr(e.dtstart) === dateStr;
             }).map(e => {
-                const dtStr = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
-                const parsed = new Date(dtStr);
+                const parsed = parseDtstart(e.dtstart);
                 let endParsed = null;
                 if (e.dtend) {
-                    const endStr = e.dtend.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
-                    endParsed = new Date(endStr);
+                    endParsed = parseDtstart(e.dtend);
                 }
-                return { ...e, parsedDate: parsed, parsedEnd: endParsed };
+                const isAllDay = e.dtstart && !e.dtstart.includes('T');
+                return { ...e, parsedDate: parsed, parsedEnd: endParsed, isAllDay };
             }).sort((a, b) => a.parsedDate - b.parsedDate);
 
             if (dayEvents.length === 0) {
@@ -791,12 +816,17 @@
             let html = `<div class="detail-date-heading">${escapeHTML(headingDate)} — ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''}</div>`;
 
             dayEvents.forEach(evt => {
-                const timeOpts = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
-                const startTime = evt.parsedDate.toLocaleTimeString('en-SG', timeOpts);
-                let timeStr = startTime;
-                if (evt.parsedEnd) {
-                    const endTime = evt.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
-                    timeStr = `${startTime} — ${endTime}`;
+                let timeStr;
+                if (evt.isAllDay) {
+                    timeStr = 'All Day';
+                } else {
+                    const timeOpts = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+                    const startTime = evt.parsedDate.toLocaleTimeString('en-SG', timeOpts);
+                    timeStr = startTime;
+                    if (evt.parsedEnd) {
+                        const endTime = evt.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
+                        timeStr = `${startTime} — ${endTime}`;
+                    }
                 }
 
                 const statusClass = (evt.status || 'CONFIRMED').toLowerCase();

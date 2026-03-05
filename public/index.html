@@ -172,6 +172,21 @@
             font-weight: 700;
         }
 
+        .calendar-day.has-event {
+            cursor: pointer;
+        }
+
+        .calendar-day.has-event:hover {
+            background: rgba(192, 132, 252, 0.1);
+        }
+
+        .calendar-day.selected {
+            background: rgba(129, 140, 248, 0.25);
+            color: #c084fc;
+            font-weight: 700;
+            box-shadow: inset 0 0 0 2px #818cf8;
+        }
+
         .calendar-day.has-event::after {
             content: '';
             position: absolute;
@@ -183,6 +198,110 @@
             background-color: #c084fc;
             border-radius: 50%;
             box-shadow: 0 0 5px #c084fc;
+        }
+
+        /* Event Detail Panel */
+        #eventDetailPanel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, padding 0.35s ease, margin 0.35s ease;
+            background: rgba(79, 70, 229, 0.06);
+            border: 1px solid transparent;
+            border-radius: 12px;
+            margin-top: 0;
+            padding: 0 1rem;
+        }
+
+        #eventDetailPanel.open {
+            max-height: 600px;
+            padding: 1.25rem 1rem;
+            margin-top: 1rem;
+            border-color: rgba(129, 140, 248, 0.15);
+        }
+
+        .detail-event-card {
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .detail-event-card:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .detail-event-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 0.6rem;
+        }
+
+        .detail-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .detail-label {
+            color: #818cf8;
+            font-weight: 700;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+
+        .detail-value {
+            color: #cbd5e1;
+        }
+
+        .detail-value a {
+            color: #a78bfa;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .detail-value a:hover {
+            color: #c4b5fd;
+        }
+
+        .detail-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-confirmed {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .badge-tentative {
+            background: rgba(250, 204, 21, 0.15);
+            color: #facc15;
+        }
+
+        .badge-cancelled {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .detail-date-heading {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .upcoming-events-list {
@@ -257,6 +376,8 @@
                 <!-- Calendar goes here -->
             </div>
 
+            <div id="eventDetailPanel"></div>
+
             <div class="upcoming-events-list">
                 <h3>Upcoming Events</h3>
                 <div id="eventsList">
@@ -324,6 +445,7 @@
         // Calendar variables
         let currentDate = new Date();
         let eventsData = [];
+        let selectedDateStr = null;
 
         async function initCalendar() {
             try {
@@ -341,11 +463,13 @@
 
             document.getElementById('prevMonth').addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() - 1);
+                clearEventDetails();
                 renderCalendar();
             });
 
             document.getElementById('nextMonth').addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() + 1);
+                clearEventDetails();
                 renderCalendar();
             });
         }
@@ -400,6 +524,9 @@
 
                 if (hasEvent) {
                     dayEl.classList.add('has-event');
+                    dayEl.addEventListener('click', () => {
+                        showEventDetails(currentDayStr);
+                    });
                 }
 
                 dayEl.innerText = i;
@@ -458,6 +585,102 @@
             return str.replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
             }[tag]));
+        }
+
+        function showEventDetails(dateStr) {
+            const panel = document.getElementById('eventDetailPanel');
+
+            // Toggle off if clicking the same day
+            if (selectedDateStr === dateStr) {
+                clearEventDetails();
+                return;
+            }
+
+            // Clear previous selection
+            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+
+            // Mark the clicked day
+            selectedDateStr = dateStr;
+            document.querySelectorAll('.calendar-day.has-event').forEach(el => {
+                // Match by reconstructing the date from the element context
+                const dayNum = parseInt(el.innerText);
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                const checkStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                if (checkStr === dateStr) el.classList.add('selected');
+            });
+
+            // Find matching events
+            const dayEvents = eventsData.filter(e => {
+                if (!e.dtstart) return false;
+                const dt = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
+                return dt === dateStr;
+            }).map(e => {
+                const dtStr = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+                const parsed = new Date(dtStr);
+                let endParsed = null;
+                if (e.dtend) {
+                    const endStr = e.dtend.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+                    endParsed = new Date(endStr);
+                }
+                return { ...e, parsedDate: parsed, parsedEnd: endParsed };
+            }).sort((a, b) => a.parsedDate - b.parsedDate);
+
+            if (dayEvents.length === 0) {
+                clearEventDetails();
+                return;
+            }
+
+            // Format the date heading
+            const headingDate = dayEvents[0].parsedDate.toLocaleDateString('en-SG', {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            let html = `<div class="detail-date-heading">${escapeHTML(headingDate)} — ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''}</div>`;
+
+            dayEvents.forEach(evt => {
+                const timeOpts = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+                const startTime = evt.parsedDate.toLocaleTimeString('en-SG', timeOpts);
+                let timeStr = startTime;
+                if (evt.parsedEnd) {
+                    const endTime = evt.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
+                    timeStr = `${startTime} — ${endTime}`;
+                }
+
+                const statusClass = (evt.status || 'CONFIRMED').toLowerCase();
+                const badgeClass = `badge-${statusClass}`;
+
+                html += `<div class="detail-event-card">`;
+                html += `<div class="detail-event-title">${escapeHTML(evt.summary || 'Untitled Event')} <span class="detail-badge ${badgeClass}">${escapeHTML(evt.status || 'CONFIRMED')}</span></div>`;
+                html += `<div class="detail-row"><span class="detail-label">Time</span><span class="detail-value">${escapeHTML(timeStr)}</span></div>`;
+
+                if (evt.location) {
+                    html += `<div class="detail-row"><span class="detail-label">Location</span><span class="detail-value">${escapeHTML(evt.location)}</span></div>`;
+                }
+                if (evt.description) {
+                    html += `<div class="detail-row"><span class="detail-label">Details</span><span class="detail-value">${escapeHTML(evt.description)}</span></div>`;
+                }
+                if (evt.categories) {
+                    html += `<div class="detail-row"><span class="detail-label">Category</span><span class="detail-value">${escapeHTML(evt.categories)}</span></div>`;
+                }
+                if (evt.url) {
+                    html += `<div class="detail-row"><span class="detail-label">Link</span><span class="detail-value"><a href="${escapeHTML(evt.url)}" target="_blank" rel="noopener">${escapeHTML(evt.url)}</a></span></div>`;
+                }
+
+                html += `</div>`;
+            });
+
+            panel.innerHTML = html;
+            panel.classList.add('open');
+        }
+
+        function clearEventDetails() {
+            selectedDateStr = null;
+            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+            const panel = document.getElementById('eventDetailPanel');
+            panel.classList.remove('open');
+            // Clear content after transition
+            setTimeout(() => { if (!panel.classList.contains('open')) panel.innerHTML = ''; }, 350);
         }
     </script>
 </body>

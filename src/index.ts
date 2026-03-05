@@ -728,16 +728,31 @@ const ADMIN_HTML = `
         });
     }
 
+    let allEvents = [];
+    let currentPage = 1;
+    const EVENTS_PER_PAGE = 10;
+
     async function loadEvents() {
         try {
             const res = await fetch('/api/events');
-            const events = await res.json();
-            const container = document.getElementById('events-container');
-            if (events.length === 0) return container.innerHTML = '<p>No events scheduled.</p>';
-            
-            container.innerHTML = events.map(e => {
-                const dt = e.dtstart.replace(/(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
-                return \`
+            allEvents = await res.json();
+            currentPage = 1;
+            renderEventsPage();
+        } catch (err) { document.getElementById('events-container').innerHTML = '<p style="color:red;">Error loading events.</p>'; }
+    }
+
+    function renderEventsPage() {
+        const container = document.getElementById('events-container');
+        if (allEvents.length === 0) return container.innerHTML = '<p>No events scheduled.</p>';
+
+        const totalPages = Math.ceil(allEvents.length / EVENTS_PER_PAGE);
+        const startIndex = (currentPage - 1) * EVENTS_PER_PAGE;
+        const endIndex = startIndex + EVENTS_PER_PAGE;
+        const pageEvents = allEvents.slice(startIndex, endIndex);
+
+        const html = pageEvents.map(e => {
+            const dt = e.dtstart.replace(/(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+            return \`
                   <div class="event-card">
                     <div class="event-info">
                       <strong>\${e.summary}</strong> <span class="event-status">\${e.status}</span><br>
@@ -749,16 +764,30 @@ const ADMIN_HTML = `
                       <button type="submit" class="btn-delete">Delete</button>
                     </form>
                   </div>\`;
-            }).join('');
+        }).join('');
 
-            // Attach edit button handlers
-            container.querySelectorAll('.btn-edit').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    openEditModal(btn.dataset.uid, btn.dataset.summary, btn.dataset.dtstart, btn.dataset.dtend, btn.dataset.status);
-                });
+        const paginationHtml = totalPages > 1 ? \`
+          <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-dark);">
+            <button onclick="changePage(-1)" \${currentPage === 1 ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-dark); color: \${currentPage === 1 ? 'var(--border-dark)' : 'var(--text-secondary)'}; padding: 0.5rem 1rem; box-shadow: none;">Previous</button>
+            <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 600;">Page \${currentPage} of \${totalPages}</span>
+            <button onclick="changePage(1)" \${currentPage === totalPages ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-dark); color: \${currentPage === totalPages ? 'var(--border-dark)' : 'var(--text-secondary)'}; padding: 0.5rem 1rem; box-shadow: none;">Next</button>
+          </div>
+        \` : '';
+
+        container.innerHTML = html + paginationHtml;
+
+        // Attach edit button handlers
+        container.querySelectorAll('.btn-edit').forEach(btn => {
+            btn.addEventListener('click', () => {
+                openEditModal(btn.dataset.uid, btn.dataset.summary, btn.dataset.dtstart, btn.dataset.dtend, btn.dataset.status);
             });
-        } catch (err) { document.getElementById('events-container').innerHTML = '<p style="color:red;">Error loading events.</p>'; }
+        });
     }
+
+    window.changePage = function(delta) {
+        currentPage += delta;
+        renderEventsPage();
+    };
 
     document.getElementById('eventForm').addEventListener('submit', async (e) => {
         e.preventDefault();

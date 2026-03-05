@@ -107,6 +107,126 @@
             text-decoration: underline;
             cursor: pointer;
         }
+
+        /* Calendar Widget Styling */
+        .calendar-widget {
+            margin-top: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: left;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            color: #e2e8f0;
+            font-weight: 700;
+        }
+
+        .calendar-header button {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+
+        .calendar-header button:hover {
+            color: #ffffff;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .calendar-day-name {
+            color: #64748b;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .calendar-day {
+            padding: 8px 0;
+            border-radius: 8px;
+            color: #94a3b8;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .calendar-day.current-month {
+            color: #e2e8f0;
+        }
+
+        .calendar-day.today {
+            background: rgba(79, 70, 229, 0.2);
+            color: #818cf8;
+            font-weight: 700;
+        }
+
+        .calendar-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background-color: #c084fc;
+            border-radius: 50%;
+            box-shadow: 0 0 5px #c084fc;
+        }
+
+        .upcoming-events-list {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+        }
+
+        .upcoming-events-list h3 {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.5rem;
+        }
+
+        .event-item {
+            display: flex;
+            flex-direction: column;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .event-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-date {
+            color: #818cf8;
+            font-weight: 700;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .event-title {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .no-events {
+            color: #64748b;
+            font-style: italic;
+        }
     </style>
 </head>
 
@@ -125,6 +245,24 @@
                 Subscribe to Calendar
             </a>
             <button class="secondary-link" id="copyBtn">Copy Subscription URL</button>
+        </div>
+
+        <div class="calendar-widget">
+            <div class="calendar-header">
+                <button id="prevMonth">&lt;</button>
+                <div id="monthYear">Loading...</div>
+                <button id="nextMonth">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Calendar goes here -->
+            </div>
+
+            <div class="upcoming-events-list">
+                <h3>Upcoming Events</h3>
+                <div id="eventsList">
+                    <div class="no-events">Loading events...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -178,7 +316,149 @@
                     });
                 });
             }
+
+            // Calendar Logic
+            initCalendar();
         });
+
+        // Calendar variables
+        let currentDate = new Date();
+        let eventsData = [];
+
+        async function initCalendar() {
+            try {
+                // Fetch events
+                const res = await fetch('/api/events');
+                if (res.ok) {
+                    eventsData = await res.json();
+                }
+            } catch (e) {
+                console.error("Failed to fetch events:", e);
+            }
+
+            renderCalendar();
+            renderUpcomingEvents();
+
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                renderCalendar();
+            });
+
+            document.getElementById('nextMonth').addEventListener('click', () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                renderCalendar();
+            });
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const monthYear = document.getElementById('monthYear');
+            grid.innerHTML = '';
+
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const today = new Date();
+
+            // Render Day Names
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            days.forEach(d => {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day-name';
+                dayEl.innerText = d;
+                grid.appendChild(dayEl);
+            });
+
+            monthYear.innerText = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            // Previous month
+            for (let i = 0; i < firstDay; i++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                dayEl.innerText = daysInPrevMonth - firstDay + i + 1;
+                grid.appendChild(dayEl);
+            }
+
+            // Current month
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day current-month';
+                if (year === today.getFullYear() && month === today.getMonth() && i === today.getDate()) {
+                    dayEl.classList.add('today');
+                }
+
+                // Check for events
+                const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                const hasEvent = eventsData.some(e => {
+                    if (!e.dtstart) return false;
+                    const dt = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T.*/, '$1-$2-$3');
+                    return dt === currentDayStr;
+                });
+
+                if (hasEvent) {
+                    dayEl.classList.add('has-event');
+                }
+
+                dayEl.innerText = i;
+                grid.appendChild(dayEl);
+            }
+
+            // Next month (fill up to 42 cells)
+            const remainingCells = 42 - (firstDay + daysInMonth);
+            for (let i = 1; i <= remainingCells; i++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+                dayEl.innerText = i;
+                grid.appendChild(dayEl);
+            }
+        }
+
+        function renderUpcomingEvents() {
+            const list = document.getElementById('eventsList');
+            if (!eventsData || eventsData.length === 0) {
+                list.innerHTML = '<div class="no-events">No upcoming events scheduled.</div>';
+                return;
+            }
+
+            const now = new Date();
+
+            // Filter and sort upcoming (dtstart >= now)
+            const upcoming = eventsData.map(e => {
+                const dtStr = e.dtstart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
+                return { ...e, parsedDate: new Date(dtStr) };
+            })
+                // Filter future events or ones happening today
+                .filter(e => {
+                    const eventDay = new Date(e.parsedDate);
+                    eventDay.setHours(0, 0, 0, 0);
+                    const today = new Date(now);
+                    today.setHours(0, 0, 0, 0);
+                    return eventDay >= today;
+                })
+                .sort((a, b) => a.parsedDate - b.parsedDate)
+                .slice(0, 3); // Max 3
+
+            if (upcoming.length === 0) {
+                list.innerHTML = '<div class="no-events">No upcoming events.</div>';
+                return;
+            }
+
+            list.innerHTML = upcoming.map(e => `
+                <div class="event-item">
+                    <div class="event-date">${e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="event-title">${escapeHTML(e.summary || 'Untitled Event')}</div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag]));
+        }
     </script>
 </body>
 

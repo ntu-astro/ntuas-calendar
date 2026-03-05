@@ -62,32 +62,6 @@
             justify-content: center;
         }
 
-        #moon-widget {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.75rem;
-            background: var(--surface-orbital);
-            border: 1px solid var(--border-dark);
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            margin-bottom: 2rem;
-            width: fit-content;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        #moon-icon {
-            font-size: 1.25rem;
-            line-height: 1;
-        }
-
-        #moon-phase-name {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-        }
-
         h1 {
             font-size: clamp(2.5rem, 5vw, 3.5rem);
             font-weight: 800;
@@ -523,11 +497,6 @@
     <div class="layout-wrapper">
         <!-- LEFT COLUMN: Branding & Text & CTAs -->
         <div class="left-column">
-            <div id="moon-widget">
-                <span id="moon-icon">🌑</span>
-                <span id="moon-phase-name">Loading Phase...</span>
-            </div>
-
             <h1>NTUAS Events</h1>
             <p class="description">Subscribe to the NTU Astronomy Society calendar for club sessions and major celestial
                 events.</p>
@@ -578,42 +547,8 @@
     </div>
 
     <script>
-        // Robust Lunar Phase Calculation
-        function updateMoonPhase() {
-            try {
-                const date = new Date();
-                const lp = 2551443; // Lunar period in seconds
-                const newMoon = new Date('1970-01-07T20:35:00Z');
-                const phase = ((date.getTime() - newMoon.getTime()) / 1000) % lp;
-                const age = Math.floor(phase / (24 * 3600));
-                const fraction = phase / lp;
-
-                const phases = [
-                    { name: "New Moon", icon: "🌑" },
-                    { name: "Waxing Crescent", icon: "🌒" },
-                    { name: "First Quarter", icon: "🌓" },
-                    { name: "Waxing Gibbous", icon: "🌔" },
-                    { name: "Full Moon", icon: "🌕" },
-                    { name: "Waning Gibbous", icon: "🌖" },
-                    { name: "Last Quarter", icon: "🌗" },
-                    { name: "Waning Crescent", icon: "🌘" }
-                ];
-
-                // Determine which of the 8 phases we are in
-                const step = Math.floor(fraction * 8);
-                const current = phases[step % 8];
-
-                document.getElementById('moon-icon').innerText = current.icon;
-                document.getElementById('moon-phase-name').innerText = current.name;
-            } catch (e) {
-                console.error("Moon phase error:", e);
-                document.getElementById('moon-phase-name').innerText = "Stargazing Mode";
-            }
-        }
-
         // Ensure the DOM is ready before running
         window.addEventListener('DOMContentLoaded', () => {
-            updateMoonPhase();
 
             // Copy URL Logic
             const SUB_URL = "https://calendar.ntuas.com/subscribe";

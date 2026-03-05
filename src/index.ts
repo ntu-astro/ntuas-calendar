@@ -13,9 +13,11 @@ const fold = (line: string): string => {
   return parts.join("\r\n");
 };
 
-const toIcsDate = (dateStr: string | null): string | null => {
+const toIcsDate = (dateStr: string | null, isAllDay: boolean = false): string | null => {
   if (!dateStr) return null;
-  return new Date(dateStr).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const date = new Date(dateStr);
+  const iso = date.toISOString().replace(/[-:]/g, "").split(".")[0];
+  return isAllDay ? iso.split("T")[0] : iso + "Z";
 };
 
 export default {
@@ -53,8 +55,9 @@ export default {
             const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
             const nowIcs = toIcsDate(new Date().toISOString());
 
-            const dtstart = toIcsDate(formData.get("dtstart") as string);
-            const dtend = toIcsDate(formData.get("dtend") as string);
+            const isAllDay = formData.get("is_all_day") === "true";
+            const dtstart = toIcsDate(formData.get("dtstart") as string, isAllDay);
+            const dtend = toIcsDate(formData.get("dtend") as string, isAllDay);
             const summary = formData.get("summary") as string;
             const description = formData.get("description") as string;
             const location = formData.get("location") as string;
@@ -115,8 +118,9 @@ export default {
           else if (action === "update") {
             const uid = formData.get("uid") as string;
             const summary = formData.get("summary") as string;
-            const dtstart = toIcsDate(formData.get("dtstart") as string);
-            const dtend = toIcsDate(formData.get("dtend") as string);
+            const isAllDay = formData.get("is_all_day") === "true";
+            const dtstart = toIcsDate(formData.get("dtstart") as string, isAllDay);
+            const dtend = toIcsDate(formData.get("dtend") as string, isAllDay);
             const status = formData.get("status") as string || "CONFIRMED";
             const location = formData.get("location") as string || null;
             const geo = formData.get("geo") as string || null;
@@ -162,9 +166,16 @@ export default {
       if (cal.x_wr_timezone) icsLines.push(`X-WR-TIMEZONE:${cal.x_wr_timezone}`);
 
       for (const event of events as any[]) {
-        icsLines.push("BEGIN:VEVENT", `UID:${event.uid}`, `DTSTAMP:${event.dtstamp}`, `DTSTART:${event.dtstart}`);
+        const isAllDay = event.dtstart.length === 8;
+        icsLines.push("BEGIN:VEVENT", `UID:${event.uid}`, `DTSTAMP:${event.dtstamp}`);
 
-        if (event.dtend) icsLines.push(`DTEND:${event.dtend}`);
+        if (isAllDay) {
+          icsLines.push(`DTSTART;VALUE=DATE:${event.dtstart}`);
+          if (event.dtend) icsLines.push(`DTEND;VALUE=DATE:${event.dtend}`);
+        } else {
+          icsLines.push(`DTSTART:${event.dtstart}`);
+          if (event.dtend) icsLines.push(`DTEND:${event.dtend}`);
+        }
         if (event.duration) icsLines.push(`DURATION:${event.duration}`);
         if (event.created) icsLines.push(`CREATED:${event.created}`);
         if (event.last_modified) icsLines.push(`LAST-MODIFIED:${event.last_modified}`);
@@ -526,6 +537,10 @@ const ADMIN_HTML = `
           <label>End Date &amp; Time (Local)</label>
           <input type="datetime-local" id="localEnd">
           <input type="hidden" name="dtend" id="isoEnd">
+        <div>
+          <label>All Day Event</label>
+          <input type="checkbox" id="allDayCheck" style="width: auto;">
+          <input type="hidden" name="is_all_day" id="isAllDay" value="false">
         </div>
       </div>
       <div>
@@ -670,6 +685,11 @@ const ADMIN_HTML = `
             <input type="datetime-local" id="edit-local-end">
             <input type="hidden" name="dtend" id="edit-iso-end">
           </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="edit-all-day-check" style="width: auto;">
+            <label style="margin-bottom: 0;">All Day Event</label>
+            <input type="hidden" name="is_all_day" id="edit-is-all-day" value="false">
+          </div>
         </div>
         <div>
           <label>Status</label>
@@ -789,6 +809,7 @@ const ADMIN_HTML = `
                       data-location="\${(e.location || '').replace(/"/g, '&quot;')}"
                       data-geo="\${e.geo || ''}"
                       data-description="\${(e.description || '').replace(/"/g, '&quot;')}"
+                      data-isallday="\${e.dtstart.length === 8}"
                     >Edit</button>
                     <form onsubmit="handleDelete(event, '\${e.uid}')">
                       <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
@@ -818,7 +839,8 @@ const ADMIN_HTML = `
                   btn.dataset.status,
                   btn.dataset.location,
                   btn.dataset.geo,
-                  btn.dataset.description
+                  btn.dataset.description,
+                  btn.dataset.isallday
                 );
             });
         });
@@ -834,6 +856,8 @@ const ADMIN_HTML = `
         const form = e.target;
         const btn = document.getElementById('submitBtn');
         btn.innerText = "Publishing..."; btn.disabled = true;
+        
+        document.getElementById('isAllDay').value = document.getElementById('allDayCheck').checked;
 
         const tz = document.getElementById('tzSelect').value;
         const start = document.getElementById('localStart').value;
@@ -868,13 +892,17 @@ const ADMIN_HTML = `
         finally { btn.disabled = false; }
     }
 
-    function openEditModal(uid, summary, dtstart, dtend, status, location, geo, description) {
+    function openEditModal(uid, summary, dtstart, dtend, status, location, geo, description, isAllDay) {
         document.getElementById('edit-uid').value = uid;
         document.getElementById('edit-summary').value = summary;
         document.getElementById('edit-status').value = status;
         document.getElementById('edit-location').value = location || '';
         document.getElementById('edit-geo').value = geo || '';
         document.getElementById('edit-description').value = description || '';
+
+        const isAllDayBool = isAllDay === 'true';
+        document.getElementById('edit-all-day-check').checked = isAllDayBool;
+        document.getElementById('edit-is-all-day').value = isAllDayBool;
 
         // Reset more details toggle
         document.getElementById('edit-more-details').style.display = 'none';
@@ -920,6 +948,9 @@ const ADMIN_HTML = `
 
         const start = document.getElementById('edit-local-start').value;
         const end = document.getElementById('edit-local-end').value;
+        
+        document.getElementById('edit-is-all-day').value = document.getElementById('edit-all-day-check').checked;
+        
         document.getElementById('edit-iso-start').value = start ? start + '+08:00' : '';
         document.getElementById('edit-iso-end').value = end ? end + '+08:00' : '';
 

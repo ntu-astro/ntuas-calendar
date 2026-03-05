@@ -164,20 +164,17 @@
 
         .calendar-day.current-month {
             color: #e2e8f0;
+            cursor: pointer;
+        }
+
+        .calendar-day.current-month:hover {
+            background: rgba(192, 132, 252, 0.1);
         }
 
         .calendar-day.today {
             background: rgba(79, 70, 229, 0.2);
             color: #818cf8;
             font-weight: 700;
-        }
-
-        .calendar-day.has-event {
-            cursor: pointer;
-        }
-
-        .calendar-day.has-event:hover {
-            background: rgba(192, 132, 252, 0.1);
         }
 
         .calendar-day.selected {
@@ -530,6 +527,9 @@
                 } else {
                     dayEl.addEventListener('click', () => {
                         clearEventDetails();
+                        // Highlight the clicked non-event day
+                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                        dayEl.classList.add('selected');
                     });
                 }
 

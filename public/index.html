@@ -162,16 +162,24 @@
             color: #ffffff;
         }
 
+        .calendar-footer {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: flex-start;
+        }
+
         #todayBtn {
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 4px 10px;
-            border-radius: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
             border: 1px solid rgba(129, 140, 248, 0.3);
             color: #818cf8;
+            background: rgba(129, 140, 248, 0.05);
             transition: all 0.2s;
+            cursor: pointer;
         }
 
         #todayBtn:hover {
@@ -409,7 +417,6 @@
                 </div>
                 <div class="center-controls" id="monthYear">Loading...</div>
                 <div class="right-controls">
-                    <button id="todayBtn">Today</button>
                     <button id="nextMonth">&gt;</button>
                 </div>
             </div>
@@ -418,6 +425,10 @@
             </div>
 
             <div id="eventDetailPanel"></div>
+
+            <div class="calendar-footer">
+                <button id="todayBtn">Today</button>
+            </div>
 
             <div class="upcoming-events-list">
                 <h3>Upcoming Events</h3>

@@ -506,13 +506,13 @@ const ADMIN_HTML = `
   <h1>Admin Dashboard</h1>
   
   <div class="panel">
-    <h2>Create Comprehensive Event</h2>
+    <h2>Create Event</h2>
     <form class="add-form" id="eventForm">
       <input type="hidden" name="action" value="add">
       
       <div class="row">
         <div><label>Admin Password*</label><input type="password" name="password" required></div>
-        <div><label>Event Title (Summary)*</label><input type="text" name="summary" required></div>
+        <div><label>Event Title*</label><input type="text" name="summary" required></div>
       </div>
 
       <h3>Date &amp; Time</h3>

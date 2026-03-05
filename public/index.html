@@ -119,12 +119,30 @@
         }
 
         .calendar-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
             color: #e2e8f0;
             font-weight: 700;
+        }
+
+        .calendar-header .left-controls {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .calendar-header .center-controls {
+            text-align: center;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .calendar-header .right-controls {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
         }
 
         .calendar-header button {
@@ -134,6 +152,10 @@
             cursor: pointer;
             font-size: 1.2rem;
             transition: color 0.2s;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .calendar-header button:hover {
@@ -382,10 +404,14 @@
 
         <div class="calendar-widget">
             <div class="calendar-header">
-                <button id="prevMonth">&lt;</button>
-                <div id="monthYear">Loading...</div>
-                <button id="todayBtn">Today</button>
-                <button id="nextMonth">&gt;</button>
+                <div class="left-controls">
+                    <button id="prevMonth">&lt;</button>
+                </div>
+                <div class="center-controls" id="monthYear">Loading...</div>
+                <div class="right-controls">
+                    <button id="todayBtn">Today</button>
+                    <button id="nextMonth">&gt;</button>
+                </div>
             </div>
             <div class="calendar-grid" id="calendarGrid">
                 <!-- Calendar goes here -->

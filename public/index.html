@@ -140,6 +140,23 @@
             color: #ffffff;
         }
 
+        #todayBtn {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(129, 140, 248, 0.3);
+            color: #818cf8;
+            transition: all 0.2s;
+        }
+
+        #todayBtn:hover {
+            background: rgba(129, 140, 248, 0.15);
+            color: #a5b4fc;
+        }
+
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -367,6 +384,7 @@
             <div class="calendar-header">
                 <button id="prevMonth">&lt;</button>
                 <div id="monthYear">Loading...</div>
+                <button id="todayBtn">Today</button>
                 <button id="nextMonth">&gt;</button>
             </div>
             <div class="calendar-grid" id="calendarGrid">
@@ -460,6 +478,12 @@
 
             document.getElementById('prevMonth').addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() - 1);
+                clearEventDetails();
+                renderCalendar();
+            });
+
+            document.getElementById('todayBtn').addEventListener('click', () => {
+                currentDate = new Date();
                 clearEventDetails();
                 renderCalendar();
             });

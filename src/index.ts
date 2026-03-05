@@ -92,8 +92,22 @@ export default {
                 .bind(uid, attachUri, formData.get("attach_fmttype") as string || null).run();
             }
 
-            const alarmTrigger = formData.get("alarm_trigger") as string;
-            if (alarmTrigger) {
+            const rawAlarmTrigger = formData.get("alarm_trigger") as string;
+            if (rawAlarmTrigger) {
+              const triggerMap: Record<string, string> = {
+                "At time of event": "-PT0M",
+                "5 minutes before": "-PT5M",
+                "10 minutes before": "-PT10M",
+                "15 minutes before": "-PT15M",
+                "30 minutes before": "-PT30M",
+                "1 hour before": "-PT1H",
+                "2 hours before": "-PT2H",
+                "1 day before": "-P1D",
+                "2 days before": "-P2D",
+                "1 week before": "-P1W"
+              };
+              const alarmTrigger = triggerMap[rawAlarmTrigger] || rawAlarmTrigger;
+
               await env.DB.prepare("INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES (?, ?, ?, ?)")
                 .bind(uid, formData.get("alarm_action") as string || "DISPLAY", alarmTrigger, formData.get("alarm_desc") as string || "Event Reminder").run();
             }
@@ -558,18 +572,31 @@ const ADMIN_HTML = `
       </div>
 
       <div class="row">
-        <div><label>Categories</label><input type="text" name="categories" placeholder="e.g. Club Events,Astronomical Events"></div>
+        <div>
+          <label>Categories</label>
+          <input list="category-list" type="text" name="categories" placeholder="e.g. Club Events,Astronomical Events">
+          <datalist id="category-list">
+            <option value="Club Events">
+            <option value="Astronomical Events">
+          </datalist>
+        </div>
         <div><label>URL / Web Link</label><input type="url" name="url" placeholder="https://..."></div>
       </div>
       
       <div class="row">
         <div>
           <label>Organizer Name</label>
-          <input type="text" name="organizer_name" placeholder="e.g. NTUAS">
+          <input list="organizer-list" type="text" name="organizer_name" placeholder="e.g. NTUAS">
+          <datalist id="organizer-list">
+            <option value="NTUAS">
+          </datalist>
         </div>
         <div>
           <label>Organizer Email</label>
-          <input type="email" name="organizer_email" placeholder="e.g. ntuas-secretary@e.ntu.edu.sg">
+          <input list="organizer-email-list" type="email" name="organizer_email" placeholder="e.g. ntuas-secretary@e.ntu.edu.sg">
+          <datalist id="organizer-email-list">
+            <option value="ntuas-secretary@e.ntu.edu.sg">
+          </datalist>
         </div>
       </div>
 
@@ -580,7 +607,22 @@ const ADMIN_HTML = `
 
       <h3>Alarms &amp; Attachments (Optional)</h3>
       <div class="row">
-        <div><label>Alarm Trigger</label><input type="text" name="alarm_trigger" placeholder="-PT15M"></div>
+        <div>
+          <label>Alarm Trigger</label>
+          <input list="alarm-trigger-list" type="text" name="alarm_trigger" placeholder="e.g. 15 minutes before">
+          <datalist id="alarm-trigger-list">
+            <option value="At time of event">
+            <option value="5 minutes before">
+            <option value="10 minutes before">
+            <option value="15 minutes before">
+            <option value="30 minutes before">
+            <option value="1 hour before">
+            <option value="2 hours before">
+            <option value="1 day before">
+            <option value="2 days before">
+            <option value="1 week before">
+          </datalist>
+        </div>
         <div>
           <label>Alarm Action</label>
           <select name="alarm_action">

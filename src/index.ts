@@ -644,7 +644,7 @@ const ADMIN_HTML = `
   </div>
 
   <script>
-    const COORDS = { NORTH_SPINE: "1.3473;103.6803", SOUTH_SPINE: "1.3428;103.6824", THE_HIVE: "1.3436;103.6823", THE_ARC: "1.3461;103.6802", WKWSCI: "1.3438;103.6818" };
+    const COORDS = { NORTH_SPINE: "1.3473;103.6803", SOUTH_SPINE: "1.3428;103.6824", THE_HIVE: "1.3436;103.6823", THE_ARC: "1.3475777755020193;103.6816184760447", WKWSCI: "1.3438;103.6818", EMB: "1.3446803707174764;103.67849230240778" };
     const venues = [
         { name: "LT1 (Von Lee Yong Miang) - North Spine", geo: COORDS.NORTH_SPINE },
         { name: "TCT-LT (LT2) - North Spine", geo: COORDS.NORTH_SPINE },
@@ -668,7 +668,7 @@ const ADMIN_HTML = `
         { name: "FOYER - South Spine", geo: COORDS.SOUTH_SPINE }, { name: "EXHIB GALY - South Spine", geo: COORDS.SOUTH_SPINE },
         { name: "FN RM - South Spine", geo: COORDS.SOUTH_SPINE }, { name: "S3.2 ESR4 - South Spine", geo: COORDS.SOUTH_SPINE },
         { name: "S3.2 ESR3 - South Spine", geo: COORDS.SOUTH_SPINE }, { name: "TRX122 - South Spine", geo: COORDS.SOUTH_SPINE },
-        { name: "ICC-LAB1 ICC CoILAB 1 - South Spine", geo: COORDS.SOUTH_SPINE }, { name: "ICC-LAB2 ICC CoILAB 2 - South Spine", geo: COORDS.SOUTH_SPINE },
+        { name: "ICC-LAB1 ICC CoILAB 1 - Experimental Medicine Building", geo: COORDS.EMB }, { name: "ICC-LAB2 ICC CoILAB 2 - Experimental Medicine Building", geo: COORDS.EMB },
         { name: "TRX43 - North Spine", geo: COORDS.NORTH_SPINE }, { name: "TRX44 - North Spine", geo: COORDS.NORTH_SPINE }
     ];
     [1,2,3,4,5,6,7,8,9,15,16,17,18,19,20,21,22,23,29,30,31,32,33,34,35,36,37].forEach(n => venues.push({ name: \`TR+\${n} - North Spine\`, geo: COORDS.NORTH_SPINE }));

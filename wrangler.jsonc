@@ -20,6 +20,13 @@
 	"observability": {
 		"enabled": true
 	},
+	"routes": [
+		{
+			"pattern": "calendar.ntuas.com",
+			"zone_name": "ntuas.com",
+			"custom_domain": true
+		}
+	],
 	"d1_databases": [
 		{
 			"binding": "DB",

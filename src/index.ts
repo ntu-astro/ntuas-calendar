@@ -522,9 +522,16 @@ const ADMIN_HTML = `
       max-width: 520px; 
       position: relative; 
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      max-height: 90vh;
+      overflow-y: auto;
     }
     
     .modal h2 { margin-top: 0; }
+    
+    .modal::-webkit-scrollbar { width: 8px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+    .modal::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
     
     .modal-close { 
       position: absolute; 

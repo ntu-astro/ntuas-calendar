@@ -1,12 +1,14 @@
 # NTUAS Calendar API
 
-A Cloudflare Worker-based API that serves an ICS calendar subscription. It utilizes a Cloudflare D1 database to store and manage calendar events, allowing users to subscribe to dynamic events seamlessly across calendar clients (like Apple Calendar, Google Calendar, Outlook). It also includes a built-in GUI admin dashboard for creating and managing events.
+A Cloudflare Worker-based API that serves an ICS calendar subscription and a public-facing calendar website. It utilizes a Cloudflare D1 database to store and manage calendar events, allowing users to subscribe to dynamic events seamlessly across calendar clients (like Apple Calendar, Google Calendar, Outlook). It also includes a public landing page and a built-in GUI admin dashboard for creating, editing, and managing events.
 
 ## Features
 
+- **Public Calendar Page:** A beautiful, responsive web calendar served at the root (`/`) for users to view upcoming events.
 - **ICS Subscription Endpoint:** Serves a standard RFC 5545 `.ics` feed directly from the D1 database.
-- **Admin Dashboard:** A responsive web interface at `/admin` for creating, viewing, and deleting calendar events.
-- **API Endpoint:** Fetch all active events via a JSON endpoint endpoint (`/api/events`).
+- **Admin Dashboard:** A responsive web interface at `/admin` for creating, editing, and deleting calendar events, protected by a secure cookie-based session login.
+- **Event Support:** Comprehensive support for both Timed and All-Day events.
+- **API Endpoint:** Fetch all active events via a JSON endpoint (`/api/events`).
 - **Cloudflare D1:** Uses a serverless SQLite database for low-latency, globally distributed database queries.
 
 ## Prerequisites
@@ -74,7 +76,8 @@ npm run deploy
 
 ## Usage & Endpoints
 
+- **`GET /`**: The public-facing HTML calendar page showing valid events.
 - **`GET /subscribe` or `GET /calendar.ics`**: The main ICS feed URL. Add this URL to Apple Calendar, Google Calendar, or other clients to subscribe to the events.
-- **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin password set in your environment secrets.
-- **`POST /admin`**: API to programmatically insert, update, or delete an event (requires the password).
+- **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin session login using the environment secret password.
+- **`POST /admin`**: API to programmatically insert, update, or delete an event (requires authentication).
 - **`GET /api/events`**: Returns a JSON array of all current calendar events in the database.

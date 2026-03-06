@@ -53,7 +53,7 @@ A Cloudflare Worker-based API that serves an ICS calendar subscription. It utili
    ```
 
 5. **Set the Admin Password:**
-   In your `wrangler.jsonc`, update the `ADMIN_PASSWORD` variable. For production, it is highly recommended to set it securely via Wrangler secrets:
+   You must set the `ADMIN_PASSWORD` securely via Wrangler secrets. This is required for both local development and production.
    ```bash
    npx wrangler secret put ADMIN_PASSWORD
    ```
@@ -75,6 +75,6 @@ npm run deploy
 ## Usage & Endpoints
 
 - **`GET /subscribe` or `GET /calendar.ics`**: The main ICS feed URL. Add this URL to Apple Calendar, Google Calendar, or other clients to subscribe to the events.
-- **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin password set in your `wrangler.jsonc` or environment secrets.
-- **`POST /admin`**: API to programmatically insert or delete an event (requires the password).
+- **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin password set in your environment secrets.
+- **`POST /admin`**: API to programmatically insert, update, or delete an event (requires the password).
 - **`GET /api/events`**: Returns a JSON array of all current calendar events in the database.

@@ -43,6 +43,29 @@ export default {
     // 2. ADMIN DASHBOARD & API
     // ==========================================
     if (url.pathname === "/admin") {
+      const authHeader = request.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
+        });
+      }
+
+      const match = authHeader.match(/^Basic\s+(.*)$/);
+      if (!match) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
+        });
+      }
+
+      const [username, password] = atob(match[1]).split(":");
+      if (password !== env.ADMIN_PASSWORD) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
+        });
+      }
 
       if (request.method === "GET") {
         return new Response(ADMIN_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
@@ -51,12 +74,7 @@ export default {
       if (request.method === "POST") {
         try {
           const formData = await request.formData();
-          const password = formData.get("password");
           const action = formData.get("action");
-
-          if (password !== env.ADMIN_PASSWORD) {
-            return Response.json({ success: false, error: "Incorrect Admin Password." }, { status: 401 });
-          }
 
           if (action === "add") {
             const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
@@ -173,6 +191,10 @@ export default {
           }
           else if (action === "delete") {
             const uid = formData.get("uid") as string;
+            const password = formData.get("password") as string;
+            if (password !== env.ADMIN_PASSWORD) {
+              return Response.json({ success: false, error: "Incorrect password for deletion." }, { status: 401 });
+            }
             await env.DB.prepare("DELETE FROM events WHERE uid = ?").bind(uid).run();
           }
 
@@ -639,7 +661,6 @@ const ADMIN_HTML = `
       <input type="hidden" name="action" value="add">
       
       <div class="row">
-        <div><label>Admin Password*</label><input type="password" name="password" required></div>
         <div><label>Event Title*</label><input type="text" name="summary" required></div>
       </div>
 
@@ -822,10 +843,6 @@ const ADMIN_HTML = `
             <option value="TENTATIVE">TENTATIVE</option>
             <option value="CANCELLED">CANCELLED</option>
           </select>
-        </div>
-        <div>
-          <label>Admin Password*</label>
-          <input type="password" name="password" id="edit-password" required autocomplete="current-password">
         </div>
 
         <div id="edit-more-details" style="display: none; border-top: 1px solid var(--border-dark); padding-top: 1rem; margin-top: 0.5rem;">

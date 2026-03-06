@@ -3,6 +3,21 @@ export interface Env {
   ADMIN_PASSWORD: string;
 }
 
+async function generateSessionToken(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode("ntuas-admin-session:" + password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getCookie(request: Request, name: string): string | null {
+  const cookieHeader = request.headers.get("Cookie");
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? match[1] : null;
+}
+
 const fold = (line: string): string => {
   const parts = [];
   while (line.length > 75) {
@@ -40,31 +55,45 @@ export default {
     }
 
     // ==========================================
-    // 2. ADMIN DASHBOARD & API
+    // 2. ADMIN LOGIN / LOGOUT
+    // ==========================================
+    if (url.pathname === "/admin/login" && request.method === "POST") {
+      const formData = await request.formData();
+      const password = formData.get("password") as string;
+
+      if (password !== env.ADMIN_PASSWORD) {
+        return new Response(LOGIN_HTML(true), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+      }
+
+      const token = await generateSessionToken(env.ADMIN_PASSWORD);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          "Location": "/admin",
+          "Set-Cookie": `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=86400`,
+        },
+      });
+    }
+
+    if (url.pathname === "/admin/logout" && request.method === "GET") {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          "Location": "/admin",
+          "Set-Cookie": `admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=0`,
+        },
+      });
+    }
+
+    // ==========================================
+    // 3. ADMIN DASHBOARD & API
     // ==========================================
     if (url.pathname === "/admin") {
-      const authHeader = request.headers.get("Authorization");
-      if (!authHeader) {
-        return new Response("Unauthorized", {
-          status: 401,
-          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
-        });
-      }
+      const sessionCookie = getCookie(request, "admin_session");
+      const validToken = await generateSessionToken(env.ADMIN_PASSWORD);
 
-      const match = authHeader.match(/^Basic\s+(.*)$/);
-      if (!match) {
-        return new Response("Unauthorized", {
-          status: 401,
-          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
-        });
-      }
-
-      const [username, password] = atob(match[1]).split(":");
-      if (password !== env.ADMIN_PASSWORD) {
-        return new Response("Unauthorized", {
-          status: 401,
-          headers: { "WWW-Authenticate": 'Basic realm="Admin"' },
-        });
+      if (sessionCookie !== validToken) {
+        return new Response(LOGIN_HTML(false), { headers: { "Content-Type": "text/html; charset=utf-8" } });
       }
 
       if (request.method === "GET") {
@@ -653,7 +682,10 @@ const ADMIN_HTML = `
   </style>
 </head>
 <body>
-  <h1>Admin Dashboard</h1>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="margin: 0;">Admin Dashboard</h1>
+    <a href="/admin/logout" style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 600; text-decoration: none; padding: 0.5rem 1rem; border: 1px solid var(--border-dark); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='var(--text-secondary)'" onmouseout="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border-dark)'">Logout</a>
+  </div>
   
   <div class="panel">
     <h2>Create Event</h2>
@@ -1178,5 +1210,116 @@ const ADMIN_HTML = `
 
     document.addEventListener('DOMContentLoaded', () => { initVenues(); loadEvents(); });
   </script>
+</body>
+</html>`;
+
+const LOGIN_HTML = (error: boolean) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — NTUAS Calendar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #0B0E14;
+      --surface-orbital: #151A23;
+      --text-primary: #F8FAFC;
+      --text-secondary: #94A3B8;
+      --accent-indigo: #6366F1;
+      --accent-hover: #4F46E5;
+      --border-dark: #222B38;
+      --danger: #F87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-void);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .login-card {
+      background: var(--surface-orbital);
+      border: 1px solid var(--border-dark);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    .login-card h1 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    .login-card p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      margin-bottom: 2rem;
+    }
+    .login-card input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-dark);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+      text-align: center;
+    }
+    .login-card input:focus {
+      outline: none;
+      border-color: var(--accent-indigo);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .login-card button {
+      width: 100%;
+      padding: 0.875rem;
+      margin-top: 1.25rem;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent-indigo);
+      color: white;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+    }
+    .login-card button:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>NTUAS Admin</h1>
+    <p>Enter the admin password to continue.</p>
+    <form method="POST" action="/admin/login">
+      <input type="password" name="password" placeholder="Password" required autofocus>
+      <button type="submit">Sign In</button>
+    </form>
+    ${error ? '<p class="error-msg">Incorrect password. Please try again.</p>' : ''}
+  </div>
 </body>
 </html>`;

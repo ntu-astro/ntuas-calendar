@@ -1,6 +1,6 @@
-# NTUAS Calendar API
+# NTUAS Calendar System
 
-A Cloudflare Worker-based API that serves an ICS calendar subscription and a public-facing calendar website. It utilizes a Cloudflare D1 database to store and manage calendar events, allowing users to subscribe to dynamic events seamlessly across calendar clients (like Apple Calendar, Google Calendar, Outlook). It also includes a public landing page and a built-in GUI admin dashboard for creating, editing, and managing events.
+A Cloudflare Worker-based system that serves an ICS calendar subscription and a public-facing calendar website. It utilizes a Cloudflare D1 database to store and manage calendar events, allowing users to subscribe to dynamic events seamlessly across calendar clients (like Apple Calendar, Google Calendar, Outlook). It also includes a public landing page and a built-in GUI admin dashboard for creating, editing, and managing events.
 
 ## Features
 
@@ -8,7 +8,7 @@ A Cloudflare Worker-based API that serves an ICS calendar subscription and a pub
 - **ICS Subscription Endpoint:** Serves a standard RFC 5545 `.ics` feed directly from the D1 database.
 - **Admin Dashboard:** A responsive web interface at `/admin` for creating, editing, and deleting calendar events, protected by a secure cookie-based session login.
 - **Event Support:** Comprehensive support for both Timed and All-Day events.
-- **API Endpoint:** Fetch all active events via a JSON endpoint (`/api/events`).
+- **JSON Endpoint:** Fetch all active events via a JSON endpoint (`/api/events`).
 - **Cloudflare D1:** Uses a serverless SQLite database for low-latency, globally distributed database queries.
 
 ## Database Schema
@@ -112,4 +112,4 @@ The root page (`/`) serves as a public-facing, responsive web calendar for your 
 - **Upcoming Events**: A quick-glance list of the closest upcoming events is prominently displayed alongside the calendar for easy access.
 
 ### 4. Important Notes
-- **ICS Sync Latency**: Please note that third-party calendar applications check for updates at their own internal intervals. While Apple Calendar allows you to set the refresh frequency (e.g., every 5 minutes), **Google Calendar may take up to 12-24 hours to reflect new updates or changes**. This latency is controlled by Google and cannot be forced from the API.
+- **ICS Sync Latency**: Please note that third-party calendar applications check for updates at their own internal intervals. While Apple Calendar allows you to set the refresh frequency (e.g., every 5 minutes), **Google Calendar may take up to 12-24 hours to reflect new updates or changes**. This latency is controlled by Google and cannot be forced from the application.

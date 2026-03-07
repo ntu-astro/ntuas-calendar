@@ -329,14 +329,14 @@ const ADMIN_HTML = `
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #0B0E14;
-      --surface-orbital: #151A23;
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --accent-indigo: #6366F1;
-      --accent-hover: #4F46E5;
-      --highlight-gold: #FBBF24;
-      --border-dark: #222B38;
+      --bg-void: #121212;
+      --surface-orbital: #1E1E1E;
+      --text-primary: #FFFFFF;
+      --text-secondary: #A1A1A1;
+      --accent-indigo: #18A0FB;
+      --accent-hover: #1584D1;
+      --highlight-gold: #18A0FB;
+      --border-dark: #333333;
       --success: #34D399;
       --danger: #F87171;
       --danger-hover: #EF4444;
@@ -447,17 +447,17 @@ const ADMIN_HTML = `
       width: 100%; 
       margin-top: 1rem; 
       transition: all 0.2s ease; 
-      box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.2);
+      box-shadow: 0 4px 14px 0 rgba(24, 160, 251, 0.2);
     }
     
     button:hover:not(:disabled) { 
       background: var(--accent-hover); 
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 6px 20px rgba(24, 160, 251, 0.3);
     }
     
     button:disabled { 
-      background: rgba(99, 102, 241, 0.4); 
+      background: rgba(24, 160, 251, 0.4); 
       cursor: not-allowed; 
       box-shadow: none;
       transform: none;
@@ -670,7 +670,7 @@ const ADMIN_HTML = `
     .all-day-badge {
       display: inline-block;
       padding: 0.1rem 0.4rem;
-      background: rgba(99, 102, 241, 0.15);
+      background: rgba(24, 160, 251, 0.15);
       color: var(--accent-indigo);
       border-radius: 4px;
       font-size: 0.65rem;
@@ -1225,13 +1225,13 @@ const LOGIN_HTML = (error: boolean) => `
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #0B0E14;
-      --surface-orbital: #151A23;
-      --text-primary: #F8FAFC;
-      --text-secondary: #94A3B8;
-      --accent-indigo: #6366F1;
-      --accent-hover: #4F46E5;
-      --border-dark: #222B38;
+      --bg-void: #121212;
+      --surface-orbital: #1E1E1E;
+      --text-primary: #FFFFFF;
+      --text-secondary: #A1A1A1;
+      --accent-indigo: #18A0FB;
+      --accent-hover: #1584D1;
+      --border-dark: #333333;
       --danger: #F87171;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1296,12 +1296,12 @@ const LOGIN_HTML = (error: boolean) => `
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+      box-shadow: 0 4px 14px rgba(24, 160, 251, 0.25);
     }
     .login-card button:hover {
       background: var(--accent-hover);
       transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 6px 20px rgba(24, 160, 251, 0.35);
     }
     .error-msg {
       color: var(--danger);

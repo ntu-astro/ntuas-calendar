@@ -10,14 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-void: #0B0E14;
-            --surface-orbital: #151A23;
-            --text-primary: #F8FAFC;
-            --text-secondary: #94A3B8;
-            --accent-indigo: #6366F1;
-            --accent-hover: #4F46E5;
-            --highlight-gold: #FBBF24;
-            --border-dark: #222B38;
+            --bg-void: #121212;
+            --surface-orbital: #1E1E1E;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A1A1A1;
+            --accent-indigo: #18A0FB;
+            --accent-hover: #1584D1;
+            --highlight-gold: #18A0FB;
+            --border-dark: #333333;
         }
 
         * {
@@ -110,14 +110,14 @@
             transition: all 0.2s ease;
             border: none;
             cursor: pointer;
-            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
+            box-shadow: 0 4px 14px 0 rgba(24, 160, 251, 0.39);
         }
 
         .btn-primary:hover,
         .btn-primary:focus {
             background: var(--accent-hover);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+            box-shadow: 0 6px 20px rgba(24, 160, 251, 0.5);
             outline: none;
         }
 
@@ -291,8 +291,8 @@
         }
 
         .calendar-day.today {
-            background: rgba(251, 191, 36, 0.1);
-            /* Subtle gold bg */
+            background: rgba(24, 160, 251, 0.1);
+            /* Subtle blue bg */
             color: var(--highlight-gold);
             font-weight: 700;
         }
@@ -301,7 +301,7 @@
             background: var(--accent-indigo);
             color: white;
             font-weight: 700;
-            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 4px 10px rgba(24, 160, 251, 0.4);
         }
 
         .calendar-day.selected:hover {
@@ -319,7 +319,7 @@
             height: 5px;
             background-color: var(--highlight-gold);
             border-radius: 50%;
-            box-shadow: 0 0 5px rgba(251, 191, 36, 0.5);
+            box-shadow: 0 0 5px rgba(24, 160, 251, 0.5);
         }
 
         .calendar-day.selected.has-event::after {
@@ -372,7 +372,7 @@
             padding: 1.5rem;
             margin-top: 1.5rem;
             border-color: var(--border-dark);
-            background: rgba(34, 43, 56, 0.3);
+            background: rgba(0, 0, 0, 0.2);
             overflow-y: auto;
             /* slightly darker background inset */
         }

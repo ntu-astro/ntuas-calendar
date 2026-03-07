@@ -11,6 +11,10 @@ A Cloudflare Worker-based API that serves an ICS calendar subscription and a pub
 - **API Endpoint:** Fetch all active events via a JSON endpoint (`/api/events`).
 - **Cloudflare D1:** Uses a serverless SQLite database for low-latency, globally distributed database queries.
 
+## Database Schema
+
+![Database ERD](https://ntuas.com/ntuas-calendar/docs/database_erd.avif)
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) installed

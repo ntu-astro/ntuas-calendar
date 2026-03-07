@@ -85,3 +85,31 @@ npm run deploy
 - **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin session login using the environment secret password.
 - **`POST /admin`**: API to programmatically insert, update, or delete an event (requires authentication).
 - **`GET /api/events`**: Returns a JSON array of all current calendar events in the database.
+
+## User Guide
+
+### 1. Admin Dashboard Usage
+The Admin Dashboard located at `/admin` is your control center for managing the calendar.
+- **Logging In**: Access the dashboard and log in using the `ADMIN_PASSWORD` defined in your environment secrets.
+- **Creating & Editing Events**: Fill out the event details such as title, location, category, and time. 
+- **Timed vs. All-Day Events**: 
+  - *Timed Events*: Specify an exact start and end time (e.g., a meeting from 2:00 PM to 3:00 PM).
+  - *All-Day Events*: Toggle "All Day Event" to span the entire day without specific hours. If an end date is not provided, it defaults to a single day.
+- **Deleting Events**: Existing events listed on the dashboard can be deleted by entering your admin password in the deletion prompt.
+
+### 2. Calendar Subscription
+Users can subscribe to the calendar so that events sync directly to their personal devices.
+1. Navigate to the public calendar page (`/`).
+2. Click the **"Copy Subscription URL"** button or manually copy the `/subscribe` link.
+3. Add the copied URL to your preferred calendar application:
+   - **Apple Calendar**: Go to *File > New Calendar Subscription...* and paste the URL.
+   - **Google Calendar**: On the left panel under "Other calendars," click the `+` icon > *From URL* and paste the link.
+   - **Outlook**: Go to *Add Calendar > Subscribe from web* and paste the URL.
+
+### 3. Public View
+The root page (`/`) serves as a public-facing, responsive web calendar for your users.
+- **Interactive Calendar Widget**: Users can view the current month, shift through previous or upcoming months using the navigation arrows, and click on highlighted dates to view specific event details.
+- **Upcoming Events**: A quick-glance list of the closest upcoming events is prominently displayed alongside the calendar for easy access.
+
+### 4. Important Notes
+- **ICS Sync Latency**: Please note that third-party calendar applications check for updates at their own internal intervals. While Apple Calendar allows you to set the refresh frequency (e.g., every 5 minutes), **Google Calendar may take up to 12-24 hours to reflect new updates or changes**. This latency is controlled by Google and cannot be forced from the API.

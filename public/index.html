@@ -385,6 +385,7 @@
             transition: background 0.12s;
             overflow: hidden;
             position: relative;
+            min-height: 0;
         }
 
         .calendar-day:nth-child(7n) {
@@ -473,6 +474,9 @@
             transition: max-height 0.3s ease, padding 0.3s ease;
             border-top: none;
             padding: 0 20px;
+            background: var(--bg-main);
+            position: relative;
+            z-index: 1;
         }
 
         #eventDetailPanel.open {

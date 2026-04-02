@@ -25,6 +25,8 @@
             --border-strong: #e0e0de;
             --radius-sm: 4px;
             --radius-md: 6px;
+            --left-sidebar-width: 260px;
+            --mini-cal-cell: 28px;
         }
 
         * {
@@ -61,29 +63,41 @@
         .nav-left {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 4px;
             min-width: 0;
         }
 
-        .nav-title {
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--text-primary);
-            white-space: nowrap;
-            letter-spacing: -0.01em;
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
         }
 
-        .nav-divider {
-            width: 1px;
-            height: 20px;
-            background: var(--border-strong);
+        .nav-icon-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
             flex-shrink: 0;
+        }
+
+        .nav-icon-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
         }
 
         .nav-month-controls {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
         }
 
         .nav-month-controls button {
@@ -107,15 +121,6 @@
             color: var(--text-primary);
         }
 
-        #monthYear {
-            font-weight: 600;
-            font-size: 14px;
-            color: var(--text-primary);
-            min-width: 130px;
-            text-align: center;
-            user-select: none;
-        }
-
         #todayBtn {
             font-size: 12px;
             font-weight: 500;
@@ -135,13 +140,6 @@
         #todayBtn:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
-        }
-
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
         }
 
         .btn-subscribe {
@@ -214,9 +212,114 @@
         /* ─── MAIN CONTENT ─── */
         .main-content {
             display: grid;
-            grid-template-columns: 1fr 280px;
+            grid-template-columns: var(--left-sidebar-width) 1fr 280px;
             flex: 1;
             overflow: hidden;
+        }
+
+        /* ─── LEFT SIDEBAR ─── */
+        .left-sidebar {
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .mini-cal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .mini-cal-month-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        .mini-cal-nav-group {
+            display: flex;
+            gap: 2px;
+        }
+
+        .mini-cal-nav {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: background 0.15s;
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .mini-cal-nav:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .mini-cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, var(--mini-cal-cell));
+            gap: 1px 0;
+        }
+
+        .mini-cal-day-name {
+            width: var(--mini-cal-cell);
+            height: var(--mini-cal-cell);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            user-select: none;
+        }
+
+        .mini-cal-day {
+            width: var(--mini-cal-cell);
+            height: var(--mini-cal-cell);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.12s;
+            user-select: none;
+        }
+
+        .mini-cal-day:hover:not(.today) {
+            background: var(--bg-hover);
+        }
+
+        .mini-cal-day.other-month {
+            color: var(--text-tertiary);
+        }
+
+        .mini-cal-day.today {
+            background: var(--accent-red);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .mini-cal-day.mini-selected:not(.today) {
+            background: var(--accent-blue-light);
+            color: var(--accent-blue);
+            font-weight: 500;
         }
 
         /* ─── CALENDAR AREA ─── */
@@ -225,6 +328,20 @@
             flex-direction: column;
             overflow-y: auto;
             padding: 0;
+        }
+
+        /* ─── CALENDAR TITLE BAR ─── */
+        .calendar-title-bar {
+            padding: 10px 16px 8px 16px;
+            flex-shrink: 0;
+        }
+
+        .calendar-title-bar h1 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            line-height: 1;
         }
 
         .calendar-grid {
@@ -488,6 +605,16 @@
         }
 
         /* ─── RESPONSIVE ─── */
+        @media (max-width: 1099px) {
+            .left-sidebar {
+                display: none;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr 280px;
+            }
+        }
+
         @media (max-width: 899px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -516,10 +643,6 @@
             .nav-right {
                 width: 100%;
                 justify-content: center;
-            }
-
-            .nav-divider {
-                display: none;
             }
 
             .calendar-area {
@@ -562,9 +685,8 @@
                 vertical-align: middle;
             }
 
-            #monthYear {
-                min-width: auto;
-                font-size: 13px;
+            .calendar-title-bar h1 {
+                font-size: 18px;
             }
         }
     </style>
@@ -573,24 +695,41 @@
 <body>
     <nav class="top-nav">
         <div class="nav-left">
-            <span class="nav-title">NTUAS Events</span>
-            <div class="nav-divider"></div>
-            <div class="nav-month-controls">
-                <button id="prevMonth" aria-label="Previous Month">&#8249;</button>
-                <span id="monthYear">Loading...</span>
-                <button id="nextMonth" aria-label="Next Month">&#8250;</button>
-            </div>
-            <button id="todayBtn">Today</button>
+            <button class="nav-icon-btn" id="toggleSidebar" aria-label="Toggle sidebar">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+                    <rect x="1" y="7.25" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+                    <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+                </svg>
+            </button>
         </div>
         <div class="nav-right">
             <a href="webcal://calendar.ntuas.com/subscribe" class="btn-subscribe">Subscribe</a>
             <button class="btn-copy" id="copyBtn">Copy URL</button>
             <a href="/admin" class="admin-link">Admin</a>
+            <button id="todayBtn">Today</button>
+            <div class="nav-month-controls">
+                <button id="prevMonth" aria-label="Previous Month">&#8249;</button>
+                <button id="nextMonth" aria-label="Next Month">&#8250;</button>
+            </div>
         </div>
     </nav>
 
     <div class="main-content">
+        <aside class="left-sidebar" id="leftSidebar">
+            <div class="mini-cal-header">
+                <span class="mini-cal-month-label" id="miniCalMonth">Loading...</span>
+                <div class="mini-cal-nav-group">
+                    <button class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">&#8249;</button>
+                    <button class="mini-cal-nav" id="miniCalNext" aria-label="Next month">&#8250;</button>
+                </div>
+            </div>
+            <div class="mini-cal-grid" id="miniCalGrid"></div>
+        </aside>
         <div class="calendar-area">
+            <div class="calendar-title-bar">
+                <h1 id="monthYear">Loading...</h1>
+            </div>
             <div class="calendar-grid" id="calendarGrid"></div>
             <div id="eventDetailPanel"></div>
         </div>
@@ -626,6 +765,7 @@
         let currentDate = new Date();
         let eventsData = [];
         let selectedDateStr = null;
+        let miniCalDate = new Date();
 
         function parseDtstart(dtstart) {
             if (!dtstart) return null;
@@ -659,25 +799,111 @@
             }
 
             renderCalendar();
+            renderMiniCalendar();
             renderUpcomingEvents();
 
             document.getElementById('prevMonth').addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() - 1);
+                miniCalDate = new Date(currentDate);
                 clearEventDetails();
                 renderCalendar();
+                renderMiniCalendar();
             });
 
             document.getElementById('todayBtn').addEventListener('click', () => {
                 currentDate = new Date();
+                miniCalDate = new Date();
                 clearEventDetails();
                 renderCalendar();
+                renderMiniCalendar();
             });
 
             document.getElementById('nextMonth').addEventListener('click', () => {
                 currentDate.setMonth(currentDate.getMonth() + 1);
+                miniCalDate = new Date(currentDate);
                 clearEventDetails();
                 renderCalendar();
+                renderMiniCalendar();
             });
+
+            document.getElementById('miniCalPrev').addEventListener('click', () => {
+                miniCalDate = new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() - 1, 1);
+                renderMiniCalendar();
+            });
+
+            document.getElementById('miniCalNext').addEventListener('click', () => {
+                miniCalDate = new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() + 1, 1);
+                renderMiniCalendar();
+            });
+
+            document.getElementById('toggleSidebar').addEventListener('click', () => {
+                const sidebar = document.getElementById('leftSidebar');
+                const isHidden = sidebar.style.display === 'none';
+                sidebar.style.display = isHidden ? 'flex' : 'none';
+                const content = document.querySelector('.main-content');
+                content.style.gridTemplateColumns = isHidden
+                    ? 'var(--left-sidebar-width) 1fr 280px'
+                    : '1fr 280px';
+            });
+        }
+
+        function renderMiniCalendar() {
+            const grid = document.getElementById('miniCalGrid');
+            const monthLabel = document.getElementById('miniCalMonth');
+            grid.textContent = '';
+
+            const year = miniCalDate.getFullYear();
+            const month = miniCalDate.getMonth();
+            const today = new Date();
+
+            monthLabel.textContent = miniCalDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+            dayNames.forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'mini-cal-day-name';
+                el.textContent = d;
+                grid.appendChild(el);
+            });
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+
+            // Previous month trailing days
+            for (let i = firstDay - 1; i >= 0; i--) {
+                const el = document.createElement('div');
+                el.className = 'mini-cal-day other-month';
+                el.textContent = prevMonthDays - i;
+                grid.appendChild(el);
+            }
+
+            // Current month days
+            for (let i = 1; i <= daysInMonth; i++) {
+                const el = document.createElement('div');
+                const isToday = year === today.getFullYear() && month === today.getMonth() && i === today.getDate();
+                const isMainMonth = year === currentDate.getFullYear() && month === currentDate.getMonth();
+                el.className = 'mini-cal-day' + (isToday ? ' today' : '');
+                el.textContent = i;
+                el.addEventListener('click', () => {
+                    currentDate = new Date(year, month, i);
+                    miniCalDate = new Date(year, month, 1);
+                    clearEventDetails();
+                    renderCalendar();
+                    renderMiniCalendar();
+                });
+                grid.appendChild(el);
+            }
+
+            // Next month leading days
+            const totalCells = firstDay + daysInMonth;
+            const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            for (let i = 1; i <= remaining; i++) {
+                const el = document.createElement('div');
+                el.className = 'mini-cal-day other-month';
+                el.textContent = i;
+                grid.appendChild(el);
+            }
         }
 
         function renderCalendar() {
@@ -825,7 +1051,9 @@
 
                     const eventDate = new Date(rawDate);
                     currentDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
+                    miniCalDate = new Date(currentDate);
                     renderCalendar();
+                    renderMiniCalendar();
 
                     setTimeout(() => {
                         const targetDateStr = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;

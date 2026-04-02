@@ -467,23 +467,44 @@
             padding-left: 2px;
         }
 
-        /* ─── EVENT DETAIL PANEL ─── */
-        #eventDetailPanel {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-            border-top: none;
-            padding: 0 20px;
-            background: var(--bg-main);
-            position: relative;
-            z-index: 1;
+        /* ─── SIDEBAR DETAIL VIEW ─── */
+        .sidebar-detail-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 14px;
         }
 
-        #eventDetailPanel.open {
-            max-height: 400px;
-            padding: 16px 20px;
-            border-top: 1px solid var(--border);
-            overflow-y: auto;
+        .sidebar-back-btn {
+            background: none;
+            border: none;
+            color: var(--accent-blue);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 4px 0;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.15s;
+        }
+
+        .sidebar-back-btn:hover {
+            color: var(--accent-blue-hover);
+        }
+
+        #eventDetailView .detail-date-heading {
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+
+        #eventDetailView .detail-row {
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        #eventDetailView .detail-label {
+            min-width: unset;
         }
 
         .detail-date-heading {
@@ -770,12 +791,25 @@
                 <h1 id="monthYear">Loading...</h1>
             </div>
             <div class="calendar-grid" id="calendarGrid"></div>
-            <div id="eventDetailPanel"></div>
+
         </div>
-        <aside class="sidebar">
-            <h3>Upcoming Events</h3>
-            <div id="eventsList">
-                <div class="no-events">Loading events...</div>
+        <aside class="sidebar" id="rightSidebar">
+            <!-- Default view: Upcoming Events -->
+            <div id="upcomingEventsView">
+                <h3>Upcoming Events</h3>
+                <div id="eventsList">
+                    <div class="no-events">Loading events...</div>
+                </div>
+            </div>
+            <!-- Event detail view (hidden by default) -->
+            <div id="eventDetailView" style="display:none">
+                <div class="sidebar-detail-header">
+                    <button class="sidebar-back-btn" id="backToUpcoming" aria-label="Back to upcoming events">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        Upcoming Events
+                    </button>
+                </div>
+                <div id="eventDetailContent"></div>
             </div>
         </aside>
     </div>
@@ -889,6 +923,10 @@
 
             document.getElementById('toggleSidebar').addEventListener('click', toggleSidebar);
             document.getElementById('toggleSidebarAlt').addEventListener('click', toggleSidebar);
+
+            document.getElementById('backToUpcoming').addEventListener('click', () => {
+                clearEventDetails();
+            });
         }
 
         function renderMiniCalendar() {
@@ -1010,6 +1048,13 @@
                         const chip = document.createElement('div');
                         chip.className = 'event-chip';
                         chip.textContent = evt.summary || 'Event';
+                        // Clicking a chip shows only that specific event
+                        chip.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                            dayEl.classList.add('selected');
+                            showEventDetails(evt);
+                        });
                         dayEl.appendChild(chip);
                     });
                     if (dayEvents.length > 2) {
@@ -1018,8 +1063,11 @@
                         more.textContent = `+${dayEvents.length - 2} more`;
                         dayEl.appendChild(more);
                     }
+                    // Clicking the day cell (not a chip) shows the first event
                     dayEl.addEventListener('click', () => {
-                        showEventDetails(currentDayStr);
+                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                        dayEl.classList.add('selected');
+                        showEventDetails(dayEvents[0]);
                     });
                 } else {
                     dayEl.addEventListener('click', () => {
@@ -1093,6 +1141,7 @@
                 const item = document.createElement('div');
                 item.className = 'event-item';
                 item.dataset.date = e.parsedDate.toISOString();
+                item.dataset.uid = e.uid || '';
 
                 const dateEl = document.createElement('div');
                 dateEl.className = 'event-date';
@@ -1110,6 +1159,7 @@
             list.querySelectorAll('.event-item').forEach(el => {
                 el.addEventListener('click', function () {
                     const rawDate = this.dataset.date;
+                    const evtUid = this.dataset.uid;
                     if (!rawDate) return;
 
                     const eventDate = new Date(rawDate);
@@ -1118,11 +1168,9 @@
                     renderCalendar();
                     renderMiniCalendar();
 
-                    setTimeout(() => {
-                        const targetDateStr = `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, '0')}-${String(eventDate.getDate()).padStart(2, '0')}`;
-                        showEventDetails(targetDateStr);
-                        document.getElementById('eventDetailPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 50);
+                    // Find the specific event by uid and show it
+                    const targeted = eventsData.find(e => e.uid === evtUid);
+                    if (targeted) showEventDetails(targeted);
                 });
             });
         }
@@ -1133,139 +1181,109 @@
             }[tag]));
         }
 
-        function showEventDetails(dateStr) {
-            const panel = document.getElementById('eventDetailPanel');
+        /**
+         * showEventDetails(evt)
+         * Accepts a single raw event object from eventsData.
+         * Renders its details into #eventDetailContent and swaps the sidebar view.
+         */
+        function showEventDetails(evt) {
+            const parsed = parseDtstart(evt.dtstart);
+            let endParsed = null;
+            if (evt.dtend) endParsed = parseDtstart(evt.dtend);
+            const isAllDay = evt.dtstart && !evt.dtstart.includes('T');
+            const enriched = { ...evt, parsedDate: parsed, parsedEnd: endParsed, isAllDay };
 
-            if (selectedDateStr === dateStr) {
-                clearEventDetails();
-                return;
-            }
+            const content = document.getElementById('eventDetailContent');
+            content.textContent = '';
 
-            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-
-            selectedDateStr = dateStr;
-            document.querySelectorAll('.calendar-day.has-event').forEach(el => {
-                const dayNumEl = el.querySelector('.day-number, .today-marker');
-                if (!dayNumEl) return;
-                const dayNum = parseInt(dayNumEl.textContent);
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth();
-                const checkStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                if (checkStr === dateStr) el.classList.add('selected');
-            });
-
-            const dayEvents = eventsData.filter(e => {
-                if (!e.dtstart) return false;
-                return dtToDateStr(e.dtstart) === dateStr;
-            }).map(e => {
-                const parsed = parseDtstart(e.dtstart);
-                let endParsed = null;
-                if (e.dtend) {
-                    endParsed = parseDtstart(e.dtend);
-                }
-                const isAllDay = e.dtstart && !e.dtstart.includes('T');
-                return { ...e, parsedDate: parsed, parsedEnd: endParsed, isAllDay };
-            }).sort((a, b) => a.parsedDate - b.parsedDate);
-
-            if (dayEvents.length === 0) {
-                clearEventDetails();
-                return;
-            }
-
-            const headingDate = dayEvents[0].parsedDate.toLocaleDateString('en-SG', {
-                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-            });
-
-            // Build detail panel with DOM methods
-            panel.textContent = '';
-
+            // Date heading
+            const headingDate = parsed
+                ? parsed.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                : 'Event Details';
             const heading = document.createElement('div');
             heading.className = 'detail-date-heading';
-            heading.textContent = headingDate + ' \u2014 ' + dayEvents.length + ' event' + (dayEvents.length > 1 ? 's' : '');
-            panel.appendChild(heading);
+            heading.textContent = headingDate;
+            content.appendChild(heading);
 
-            dayEvents.forEach(evt => {
-                const card = document.createElement('div');
-                card.className = 'detail-event-card';
+            // Event card
+            const card = document.createElement('div');
+            card.className = 'detail-event-card';
 
-                const titleRow = document.createElement('div');
-                titleRow.className = 'detail-event-title';
+            const titleRow = document.createElement('div');
+            titleRow.className = 'detail-event-title';
+            titleRow.appendChild(document.createTextNode(enriched.summary || 'Untitled Event'));
+            titleRow.appendChild(document.createTextNode(' '));
+            const badge = document.createElement('span');
+            const statusClass = (enriched.status || 'CONFIRMED').toLowerCase();
+            badge.className = 'detail-badge badge-' + statusClass;
+            badge.textContent = enriched.status || 'CONFIRMED';
+            titleRow.appendChild(badge);
+            card.appendChild(titleRow);
 
-                const titleText = document.createTextNode(evt.summary || 'Untitled Event');
-                titleRow.appendChild(titleText);
-                titleRow.appendChild(document.createTextNode(' '));
-
-                const badge = document.createElement('span');
-                const statusClass = (evt.status || 'CONFIRMED').toLowerCase();
-                badge.className = 'detail-badge badge-' + statusClass;
-                badge.textContent = evt.status || 'CONFIRMED';
-                titleRow.appendChild(badge);
-                card.appendChild(titleRow);
-
-                let timeStr;
-                if (evt.isAllDay) {
-                    timeStr = 'All Day';
-                } else {
-                    const timeOpts = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
-                    const startTime = evt.parsedDate.toLocaleTimeString('en-SG', timeOpts);
-                    timeStr = startTime;
-                    if (evt.parsedEnd) {
-                        const endTime = evt.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
-                        timeStr = startTime + ' \u2014 ' + endTime;
-                    }
+            let timeStr;
+            if (enriched.isAllDay) {
+                timeStr = 'All Day';
+            } else {
+                const timeOpts = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+                const startTime = enriched.parsedDate ? enriched.parsedDate.toLocaleTimeString('en-SG', timeOpts) : '';
+                timeStr = startTime;
+                if (enriched.parsedEnd) {
+                    timeStr = startTime + ' \u2014 ' + enriched.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
                 }
+            }
 
-                function addDetailRow(label, value) {
-                    const row = document.createElement('div');
-                    row.className = 'detail-row';
-                    const labelEl = document.createElement('span');
-                    labelEl.className = 'detail-label';
-                    labelEl.textContent = label;
-                    const valueEl = document.createElement('span');
-                    valueEl.className = 'detail-value';
-                    valueEl.textContent = value;
-                    row.appendChild(labelEl);
-                    row.appendChild(valueEl);
-                    card.appendChild(row);
-                }
+            function addDetailRow(label, value) {
+                const row = document.createElement('div');
+                row.className = 'detail-row';
+                const labelEl = document.createElement('span');
+                labelEl.className = 'detail-label';
+                labelEl.textContent = label;
+                const valueEl = document.createElement('span');
+                valueEl.className = 'detail-value';
+                valueEl.textContent = value;
+                row.appendChild(labelEl);
+                row.appendChild(valueEl);
+                card.appendChild(row);
+            }
 
-                function addLinkRow(label, url) {
-                    const row = document.createElement('div');
-                    row.className = 'detail-row';
-                    const labelEl = document.createElement('span');
-                    labelEl.className = 'detail-label';
-                    labelEl.textContent = label;
-                    const valueEl = document.createElement('span');
-                    valueEl.className = 'detail-value';
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.target = '_blank';
-                    link.rel = 'noopener';
-                    link.textContent = url;
-                    valueEl.appendChild(link);
-                    row.appendChild(labelEl);
-                    row.appendChild(valueEl);
-                    card.appendChild(row);
-                }
+            function addLinkRow(label, url) {
+                const row = document.createElement('div');
+                row.className = 'detail-row';
+                const labelEl = document.createElement('span');
+                labelEl.className = 'detail-label';
+                labelEl.textContent = label;
+                const valueEl = document.createElement('span');
+                valueEl.className = 'detail-value';
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.rel = 'noopener';
+                link.textContent = url;
+                valueEl.appendChild(link);
+                row.appendChild(labelEl);
+                row.appendChild(valueEl);
+                card.appendChild(row);
+            }
 
-                addDetailRow('Time', timeStr);
-                if (evt.location) addDetailRow('Location', evt.location);
-                if (evt.description) addDetailRow('Details', evt.description);
-                if (evt.categories) addDetailRow('Category', evt.categories);
-                if (evt.url) addLinkRow('Link', evt.url);
+            addDetailRow('Time', timeStr);
+            if (enriched.location) addDetailRow('Location', enriched.location);
+            if (enriched.description) addDetailRow('Details', enriched.description);
+            if (enriched.categories) addDetailRow('Category', enriched.categories);
+            if (enriched.url) addLinkRow('Link', enriched.url);
 
-                panel.appendChild(card);
-            });
+            content.appendChild(card);
 
-            panel.classList.add('open');
+            // Swap sidebar views
+            document.getElementById('upcomingEventsView').style.display = 'none';
+            document.getElementById('eventDetailView').style.display = 'block';
         }
 
         function clearEventDetails() {
             selectedDateStr = null;
             document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-            const panel = document.getElementById('eventDetailPanel');
-            panel.classList.remove('open');
-            setTimeout(() => { if (!panel.classList.contains('open')) panel.textContent = ''; }, 300);
+            // Swap sidebar back to upcoming events
+            document.getElementById('eventDetailView').style.display = 'none';
+            document.getElementById('upcomingEventsView').style.display = 'block';
         }
     </script>
 </body>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/Users/zhunhao/.nvm/versions/node/v25.8.1/bin/node",
+      "runtimeArgs": ["/Users/zhunhao/Documents/NTUAS/my-calendar-api/node_modules/.bin/wrangler", "dev"],
+      "port": 8787
+    }
+  ]
+}

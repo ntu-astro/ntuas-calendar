@@ -27,6 +27,8 @@
             --radius-md: 6px;
             --left-sidebar-width: 260px;
             --mini-cal-cell: 28px;
+            --topbar-height: 44px;
+            --daynames-height: 32px;
         }
 
         * {
@@ -84,8 +86,13 @@
             align-items: center;
             padding: 8px 16px;
             flex-shrink: 0;
-            min-height: 44px;
+            min-height: var(--topbar-height);
             gap: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
         }
 
         .calendar-top-bar:has(.calendar-toolbar[style*="flex"]) {
@@ -130,6 +137,15 @@
         .nav-month-controls button:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
+        }
+
+        #monthLabel {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 120px;
+            text-align: center;
+            user-select: none;
         }
 
         #todayBtn {
@@ -338,29 +354,20 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            overflow-anchor: auto;
             padding: 0;
+            position: relative;
         }
 
-        /* ─── CALENDAR TITLE ROW ─── */
-        .calendar-title-row {
-            padding: 0 16px 8px 16px;
-            flex-shrink: 0;
-        }
-
-        .calendar-title-row h1 {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: -0.02em;
-            line-height: 1;
-        }
-
-        .calendar-grid {
+        /* ─── DAY NAMES ROW (sticky) ─── */
+        .day-names-row {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            grid-auto-rows: minmax(100px, 1fr);
-            flex: 1;
-            min-height: 0;
+            position: sticky;
+            top: var(--topbar-height);
+            z-index: 15;
+            background: var(--bg-main);
+            border-bottom: 1px solid var(--border);
         }
 
         .calendar-day-name {
@@ -373,38 +380,64 @@
             text-align: center;
         }
 
+        /* ─── SCROLL CONTAINER ─── */
+        .scroll-container {
+            flex: 1;
+        }
 
+        /* ─── MONTH SECTION & HEADER ─── */
+        .month-section {
+            /* Groups week rows under a month */
+        }
 
+        .month-header {
+            position: sticky;
+            top: calc(var(--topbar-height) + var(--daynames-height));
+            z-index: 5;
+            background: var(--bg-main);
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            padding: 12px 16px 8px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ─── WEEK ROW ─── */
+        .week-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+
+        /* ─── SENTINEL ─── */
+        .sentinel {
+            height: 1px;
+            overflow-anchor: none;
+        }
+
+        /* ─── CALENDAR DAY ─── */
         .calendar-day {
             padding: 6px 8px;
             border-bottom: 1px solid var(--border);
             border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            cursor: default;
+            cursor: pointer;
             transition: background 0.12s;
             overflow: hidden;
             position: relative;
-            min-height: 0;
+            min-height: 100px;
         }
 
-        .calendar-day:nth-child(7n) {
+        .calendar-day:nth-child(7) {
             border-right: none;
         }
 
-        /* Weekend columns (Sun = 1st, Sat = 7th in each row) */
-        .calendar-day:nth-child(7n+8),
-        .calendar-day:nth-child(7n+14) {
+        .calendar-day.other-month-day {
             background: rgba(0, 0, 0, 0.015);
         }
 
-
-
-        .calendar-day.current-month {
-            cursor: pointer;
-        }
-
-        .calendar-day.current-month:hover {
+        .calendar-day:hover {
             background: var(--bg-hover);
         }
 
@@ -419,15 +452,14 @@
         .day-number {
             font-size: 13px;
             font-weight: 400;
-            color: var(--text-tertiary);
+            color: var(--text-secondary);
             line-height: 1;
             margin-bottom: 4px;
             align-self: flex-end;
         }
 
-        .current-month .day-number {
-            color: var(--text-secondary);
-            font-weight: 400;
+        .other-month-day .day-number {
+            color: var(--text-tertiary);
         }
 
         .today-marker {
@@ -725,8 +757,9 @@
                 vertical-align: middle;
             }
 
-            .calendar-title-row h1 {
+            .month-header {
                 font-size: 18px;
+                padding: 8px 12px 6px 12px;
             }
         }
     </style>
@@ -758,7 +791,7 @@
             </div>
             <div class="mini-cal-grid" id="miniCalGrid"></div>
         </aside>
-        <div class="calendar-area">
+        <div class="calendar-area" id="calendarArea">
             <div class="calendar-top-bar">
                 <div class="calendar-toolbar" id="calendarToolbar" style="display:none">
                     <button class="toolbar-icon-btn" id="toggleSidebarAlt" aria-label="Toggle sidebar">
@@ -778,6 +811,7 @@
                     <button id="todayBtn">Today</button>
                     <div class="nav-month-controls">
                         <button id="prevMonth" aria-label="Previous Month">&#8249;</button>
+                        <span id="monthLabel"></span>
                         <button id="nextMonth" aria-label="Next Month">&#8250;</button>
                     </div>
                     <a href="webcal://calendar.ntuas.com/subscribe" class="btn-subscribe">Subscribe</a>
@@ -785,11 +819,11 @@
                     <a href="/admin" class="admin-link">Admin</a>
                 </div>
             </div>
-            <div class="calendar-title-row">
-                <h1 id="monthYear">Loading...</h1>
+            <div class="day-names-row" id="dayNamesRow"></div>
+            <div class="scroll-container" id="scrollContainer">
+                <div class="sentinel" id="sentinelTop"></div>
+                <div class="sentinel" id="sentinelBottom"></div>
             </div>
-            <div class="calendar-grid" id="calendarGrid"></div>
-
         </div>
         <aside class="sidebar" id="rightSidebar">
             <!-- Default view: Upcoming Events -->
@@ -833,10 +867,58 @@
             initCalendar();
         });
 
-        let currentDate = new Date();
         let eventsData = [];
-        let selectedDateStr = null;
         let miniCalDate = new Date();
+        let currentVisibleMonth = null; // tracked by IntersectionObserver
+
+        const STATE = {
+            renderedStart: null,   // Sunday Date of first rendered week
+            renderedEnd: null,     // Sunday Date of last rendered week
+            weekElements: new Map(),    // weekKey string -> DOM element
+            monthSections: new Map(),   // "YYYY-MM" -> DOM element
+            BUFFER_WEEKS: 16,
+            MAX_WEEKS: 60,
+            observers: {},
+        };
+
+        // ─── UTILITY FUNCTIONS ───
+
+        function sundayOfWeek(date) {
+            const d = new Date(date);
+            d.setDate(d.getDate() - d.getDay());
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function thursdayOfWeek(sundayDate) {
+            const d = new Date(sundayDate);
+            d.setDate(d.getDate() + 4);
+            return d;
+        }
+
+        function addWeeks(date, n) {
+            const d = new Date(date);
+            d.setDate(d.getDate() + 7 * n);
+            return d;
+        }
+
+        function getWeekKey(date) {
+            const sun = sundayOfWeek(date);
+            return `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`;
+        }
+
+        function getMonthKey(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function monthKeyToDate(key) {
+            const [y, m] = key.split('-').map(Number);
+            return new Date(y, m - 1, 1);
+        }
+
+        function formatMonthYear(date) {
+            return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+        }
 
         function parseDtstart(dtstart) {
             if (!dtstart) return null;
@@ -859,6 +941,8 @@
             }
         }
 
+        // ─── INIT ───
+
         async function initCalendar() {
             try {
                 const res = await fetch('/api/events');
@@ -869,32 +953,522 @@
                 // silently fail
             }
 
-            renderCalendar();
+            renderDayNamesRow();
+            renderWeeks(new Date(), 'both');
+
+            // Scroll to today's week instantly
+            const todayKey = getWeekKey(new Date());
+            const todayWeekEl = STATE.weekElements.get(todayKey);
+            if (todayWeekEl) {
+                scrollWeekIntoView(todayWeekEl);
+            }
+
+            // Setup month header observer immediately for sync
+            setupMonthHeaderObserver();
             renderMiniCalendar();
             renderUpcomingEvents();
+            attachButtonHandlers();
 
-            document.getElementById('prevMonth').addEventListener('click', () => {
-                currentDate.setMonth(currentDate.getMonth() - 1);
-                miniCalDate = new Date(currentDate);
-                clearEventDetails();
-                renderCalendar();
-                renderMiniCalendar();
+            // Defer sentinel observer so initial scroll settles first
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setupSentinelObserver();
+                });
+            });
+        }
+
+        // ─── DAY NAMES ROW ───
+
+        function renderDayNamesRow() {
+            const row = document.getElementById('dayNamesRow');
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            days.forEach(d => {
+                const el = document.createElement('div');
+                el.className = 'calendar-day-name';
+                el.textContent = d;
+                row.appendChild(el);
+            });
+        }
+
+        // ─── MONTH SECTION MANAGEMENT ───
+
+        function getOrCreateMonthSection(monthKey) {
+            if (STATE.monthSections.has(monthKey)) {
+                return STATE.monthSections.get(monthKey);
+            }
+
+            const section = document.createElement('div');
+            section.className = 'month-section';
+            section.dataset.month = monthKey;
+
+            const header = document.createElement('div');
+            header.className = 'month-header';
+            header.dataset.month = monthKey;
+            header.textContent = formatMonthYear(monthKeyToDate(monthKey));
+            section.appendChild(header);
+
+            // Insert in sorted order
+            const container = document.getElementById('scrollContainer');
+            const sentinelBottom = document.getElementById('sentinelBottom');
+            const existingSections = Array.from(container.querySelectorAll('.month-section'));
+            let inserted = false;
+            for (const existing of existingSections) {
+                if (existing.dataset.month > monthKey) {
+                    container.insertBefore(section, existing);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                container.insertBefore(section, sentinelBottom);
+            }
+
+            STATE.monthSections.set(monthKey, section);
+
+            return section;
+        }
+
+        // ─── WEEK ROW RENDERING ───
+
+        function renderWeekRow(sundayDate) {
+            const weekKey = getWeekKey(sundayDate);
+            if (STATE.weekElements.has(weekKey)) return STATE.weekElements.get(weekKey);
+
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+            const row = document.createElement('div');
+            row.className = 'week-row';
+            row.dataset.week = weekKey;
+
+            // Determine which month this week belongs to (by Thursday)
+            const thu = thursdayOfWeek(sundayDate);
+            const ownerMonthKey = getMonthKey(thu);
+
+            for (let d = 0; d < 7; d++) {
+                const cellDate = new Date(sundayDate);
+                cellDate.setDate(cellDate.getDate() + d);
+
+                const cellMonthKey = getMonthKey(cellDate);
+                const dayEl = document.createElement('div');
+                dayEl.className = 'calendar-day';
+
+                // Mark days that don't belong to the owning month
+                if (cellMonthKey !== ownerMonthKey) {
+                    dayEl.classList.add('other-month-day');
+                }
+
+                const year = cellDate.getFullYear();
+                const month = cellDate.getMonth();
+                const dayNum = cellDate.getDate();
+
+                const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                const isToday = currentDayStr === todayStr;
+
+                const numEl = document.createElement('span');
+                if (isToday) {
+                    numEl.className = 'today-marker';
+                } else {
+                    numEl.className = 'day-number';
+                }
+                // Show month name on the 1st of each month
+                if (dayNum === 1) {
+                    const shortMonth = cellDate.toLocaleString('default', { month: 'short' });
+                    numEl.textContent = `${shortMonth} ${dayNum}`;
+                } else {
+                    numEl.textContent = dayNum;
+                }
+                dayEl.appendChild(numEl);
+
+                // Events for this day
+                const dayEvents = eventsData.filter(e => {
+                    if (!e.dtstart) return false;
+                    return dtToDateStr(e.dtstart) === currentDayStr;
+                });
+
+                if (dayEvents.length > 0) {
+                    dayEl.classList.add('has-event');
+                    dayEvents.slice(0, 2).forEach(evt => {
+                        const chip = document.createElement('div');
+                        chip.className = 'event-chip';
+                        chip.textContent = evt.summary || 'Event';
+                        chip.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                            dayEl.classList.add('selected');
+                            showEventDetails(evt);
+                        });
+                        dayEl.appendChild(chip);
+                    });
+                    if (dayEvents.length > 2) {
+                        const more = document.createElement('div');
+                        more.className = 'event-chip-more';
+                        more.textContent = `+${dayEvents.length - 2} more`;
+                        dayEl.appendChild(more);
+                    }
+                    dayEl.addEventListener('click', () => {
+                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                        dayEl.classList.add('selected');
+                        showEventDetails(dayEvents[0]);
+                    });
+                } else {
+                    dayEl.addEventListener('click', () => {
+                        clearEventDetails();
+                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                        dayEl.classList.add('selected');
+                    });
+                }
+
+                row.appendChild(dayEl);
+            }
+
+            // Place in correct month section
+            const section = getOrCreateMonthSection(ownerMonthKey);
+            // Insert week in sorted order within section
+            const existingWeeks = Array.from(section.querySelectorAll('.week-row'));
+            let inserted = false;
+            for (const existing of existingWeeks) {
+                if (existing.dataset.week > weekKey) {
+                    section.insertBefore(row, existing);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                section.appendChild(row);
+            }
+
+            STATE.weekElements.set(weekKey, row);
+            return row;
+        }
+
+        // ─── RENDER WEEKS ───
+
+        function renderWeeks(centerDate, direction) {
+            const center = sundayOfWeek(centerDate);
+            const count = STATE.BUFFER_WEEKS;
+
+            if (direction === 'both' || direction === 'up') {
+                for (let i = count; i >= 1; i--) {
+                    const sun = addWeeks(center, -i);
+                    renderWeekRow(sun);
+                }
+            }
+
+            // Render center week
+            renderWeekRow(center);
+
+            if (direction === 'both' || direction === 'down') {
+                for (let i = 1; i <= count; i++) {
+                    const sun = addWeeks(center, i);
+                    renderWeekRow(sun);
+                }
+            }
+
+            updateRenderedRange();
+            recycleIfNeeded();
+        }
+
+        function appendWeeks(count) {
+            if (!STATE.renderedEnd) return;
+            for (let i = 1; i <= count; i++) {
+                const sun = addWeeks(STATE.renderedEnd, i);
+                renderWeekRow(sun);
+            }
+            updateRenderedRange();
+            recycleIfNeeded();
+        }
+
+        function prependWeeks(count) {
+            if (!STATE.renderedStart) return;
+            const scrollArea = document.getElementById('calendarArea');
+            const anchorEl = STATE.weekElements.get(getWeekKey(STATE.renderedStart));
+            const anchorTop = anchorEl ? anchorEl.offsetTop : 0;
+
+            for (let i = count; i >= 1; i--) {
+                const sun = addWeeks(STATE.renderedStart, -i);
+                renderWeekRow(sun);
+            }
+
+            // Manual scroll anchor compensation
+            if (anchorEl) {
+                const shift = anchorEl.offsetTop - anchorTop;
+                scrollArea.scrollTop += shift;
+            }
+
+            updateRenderedRange();
+            recycleIfNeeded();
+        }
+
+        function updateRenderedRange() {
+            const keys = Array.from(STATE.weekElements.keys()).sort();
+            if (keys.length === 0) {
+                STATE.renderedStart = null;
+                STATE.renderedEnd = null;
+                return;
+            }
+            const parseKey = k => {
+                const [y, m, d] = k.split('-').map(Number);
+                return new Date(y, m - 1, d);
+            };
+            STATE.renderedStart = parseKey(keys[0]);
+            STATE.renderedEnd = parseKey(keys[keys.length - 1]);
+        }
+
+        function recycleIfNeeded() {
+            if (STATE.weekElements.size <= STATE.MAX_WEEKS) return;
+
+            const scrollArea = document.getElementById('calendarArea');
+            const scrollTop = scrollArea.scrollTop;
+            const viewportHeight = scrollArea.clientHeight;
+            const viewCenter = scrollTop + viewportHeight / 2;
+
+            const keys = Array.from(STATE.weekElements.keys()).sort();
+            // Find the week closest to viewport center
+            let closestIdx = 0;
+            let closestDist = Infinity;
+            keys.forEach((key, idx) => {
+                const el = STATE.weekElements.get(key);
+                if (!el) return;
+                const elCenter = el.offsetTop + el.offsetHeight / 2;
+                const dist = Math.abs(elCenter - viewCenter);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestIdx = idx;
+                }
             });
 
+            const keepStart = Math.max(0, closestIdx - Math.floor(STATE.MAX_WEEKS / 2));
+            const keepEnd = Math.min(keys.length - 1, keepStart + STATE.MAX_WEEKS - 1);
+
+            // Remove weeks outside keep range
+            for (let i = 0; i < keepStart; i++) {
+                removeWeek(keys[i]);
+            }
+            for (let i = keepEnd + 1; i < keys.length; i++) {
+                removeWeek(keys[i]);
+            }
+
+            // Remove empty month sections
+            for (const [monthKey, section] of STATE.monthSections) {
+                if (section.querySelectorAll('.week-row').length === 0) {
+                    section.remove();
+                    STATE.monthSections.delete(monthKey);
+                }
+            }
+
+            updateRenderedRange();
+        }
+
+        function removeWeek(weekKey) {
+            const el = STATE.weekElements.get(weekKey);
+            if (el) {
+                el.remove();
+                STATE.weekElements.delete(weekKey);
+            }
+        }
+
+        // ─── INTERSECTION OBSERVERS ───
+
+        function setupSentinelObserver() {
+            const scrollArea = document.getElementById('calendarArea');
+            const observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) continue;
+                    if (entry.target.id === 'sentinelBottom') {
+                        appendWeeks(8);
+                    } else if (entry.target.id === 'sentinelTop') {
+                        prependWeeks(8);
+                    }
+                }
+            }, {
+                root: scrollArea,
+                rootMargin: '200px 0px',
+                threshold: 0,
+            });
+
+            observer.observe(document.getElementById('sentinelTop'));
+            observer.observe(document.getElementById('sentinelBottom'));
+            STATE.observers.sentinel = observer;
+        }
+
+        function setupMonthHeaderObserver() {
+            const scrollArea = document.getElementById('calendarArea');
+            let rafPending = false;
+
+            function updateVisibleMonth() {
+                rafPending = false;
+                const stickyTop = scrollArea.getBoundingClientRect().top + STICKY_OFFSET;
+                const headers = document.querySelectorAll('.month-header');
+                let current = null;
+
+                for (const header of headers) {
+                    const rect = header.getBoundingClientRect();
+                    // Find the last header whose top is at or above the sticky position
+                    if (rect.top <= stickyTop + 10) {
+                        current = header;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (current) {
+                    const monthKey = current.dataset.month;
+                    if (monthKey && monthKey !== currentVisibleMonth) {
+                        currentVisibleMonth = monthKey;
+                        const d = monthKeyToDate(monthKey);
+                        document.getElementById('monthLabel').textContent = formatMonthYear(d);
+
+                        // Sync mini-cal
+                        miniCalDate = new Date(d);
+                        renderMiniCalendar();
+                    }
+                }
+            }
+
+            scrollArea.addEventListener('scroll', () => {
+                if (!rafPending) {
+                    rafPending = true;
+                    requestAnimationFrame(updateVisibleMonth);
+                }
+            }, { passive: true });
+
+            // Initial sync
+            updateVisibleMonth();
+        }
+
+        // ─── SCROLL TO DATE ───
+
+        // Sticky offset: top bar + day names row + month header
+        const STICKY_OFFSET = 136;
+
+        function scrollWeekIntoView(weekEl, behavior) {
+            const scrollArea = document.getElementById('calendarArea');
+            const targetTop = weekEl.offsetTop - STICKY_OFFSET;
+            if (behavior === 'smooth') {
+                scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
+            } else {
+                scrollArea.scrollTop = targetTop;
+            }
+        }
+
+        function scrollToDate(targetDate, behavior) {
+            const weekKey = getWeekKey(targetDate);
+            let weekEl = STATE.weekElements.get(weekKey);
+
+            // Check if target is nearby (within a few screens) for smooth scroll
+            const scrollArea = document.getElementById('calendarArea');
+            const canSmoothScroll = weekEl && Math.abs(weekEl.offsetTop - STICKY_OFFSET - scrollArea.scrollTop) < scrollArea.clientHeight * 1.5;
+
+            if (canSmoothScroll) {
+                scrollWeekIntoView(weekEl, 'smooth');
+            } else {
+                // Far away or not in DOM: clear and re-center
+                if (STATE.observers.sentinel) {
+                    STATE.observers.sentinel.disconnect();
+                }
+
+                clearAllWeeks();
+                renderWeeks(targetDate, 'both');
+                weekEl = STATE.weekElements.get(weekKey);
+
+                if (weekEl) {
+                    scrollWeekIntoView(weekEl);
+                }
+
+                // Re-enable sentinel observer after layout settles
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (STATE.observers.sentinel) {
+                            STATE.observers.sentinel.observe(document.getElementById('sentinelTop'));
+                            STATE.observers.sentinel.observe(document.getElementById('sentinelBottom'));
+                        }
+                    });
+                });
+            }
+        }
+
+        function scrollToMonth(monthKey) {
+            let section = STATE.monthSections.get(monthKey);
+            const scrollArea = document.getElementById('calendarArea');
+
+            if (!section) {
+                // Month not rendered: clear and re-render centered on 15th of target month
+                const d = monthKeyToDate(monthKey);
+                d.setDate(15);
+
+                if (STATE.observers.sentinel) {
+                    STATE.observers.sentinel.disconnect();
+                }
+
+                clearAllWeeks();
+                renderWeeks(d, 'both');
+                section = STATE.monthSections.get(monthKey);
+
+                if (section) {
+                    const header = section.querySelector('.month-header');
+                    if (header) {
+                        scrollArea.scrollTop = header.offsetTop - STICKY_OFFSET + 10;
+                    }
+                }
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (STATE.observers.sentinel) {
+                            STATE.observers.sentinel.observe(document.getElementById('sentinelTop'));
+                            STATE.observers.sentinel.observe(document.getElementById('sentinelBottom'));
+                        }
+                    });
+                });
+            } else {
+                const header = section.querySelector('.month-header');
+                if (header) {
+                    const targetTop = header.offsetTop - STICKY_OFFSET + 10;
+                    const dist = Math.abs(targetTop - scrollArea.scrollTop);
+                    if (dist < scrollArea.clientHeight * 1.5) {
+                        scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
+                    } else {
+                        scrollArea.scrollTop = targetTop;
+                    }
+                }
+            }
+        }
+
+        function clearAllWeeks() {
+            for (const el of STATE.weekElements.values()) {
+                el.remove();
+            }
+            STATE.weekElements.clear();
+
+            for (const section of STATE.monthSections.values()) {
+                section.remove();
+            }
+            STATE.monthSections.clear();
+
+            STATE.renderedStart = null;
+            STATE.renderedEnd = null;
+        }
+
+        // ─── BUTTON HANDLERS ───
+
+        function attachButtonHandlers() {
             document.getElementById('todayBtn').addEventListener('click', () => {
-                currentDate = new Date();
-                miniCalDate = new Date();
                 clearEventDetails();
-                renderCalendar();
-                renderMiniCalendar();
+                scrollToDate(new Date(), 'smooth');
+            });
+
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                clearEventDetails();
+                const current = currentVisibleMonth ? monthKeyToDate(currentVisibleMonth) : new Date();
+                const prev = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+                scrollToMonth(getMonthKey(prev));
             });
 
             document.getElementById('nextMonth').addEventListener('click', () => {
-                currentDate.setMonth(currentDate.getMonth() + 1);
-                miniCalDate = new Date(currentDate);
                 clearEventDetails();
-                renderCalendar();
-                renderMiniCalendar();
+                const current = currentVisibleMonth ? monthKeyToDate(currentVisibleMonth) : new Date();
+                const next = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+                scrollToMonth(getMonthKey(next));
             });
 
             document.getElementById('miniCalPrev').addEventListener('click', () => {
@@ -926,6 +1500,8 @@
                 clearEventDetails();
             });
         }
+
+        // ─── MINI CALENDAR ───
 
         function renderMiniCalendar() {
             const grid = document.getElementById('miniCalGrid');
@@ -959,18 +1535,22 @@
             }
 
             // Current month days
+            const visibleMonthKey = currentVisibleMonth || getMonthKey(new Date());
+            const miniMonthKey = getMonthKey(miniCalDate);
+
             for (let i = 1; i <= daysInMonth; i++) {
                 const el = document.createElement('div');
                 const isToday = year === today.getFullYear() && month === today.getMonth() && i === today.getDate();
-                const isMainMonth = year === currentDate.getFullYear() && month === currentDate.getMonth();
+                const isVisibleMonth = miniMonthKey === visibleMonthKey;
                 el.className = 'mini-cal-day' + (isToday ? ' today' : '');
+                if (isVisibleMonth && !isToday) {
+                    el.classList.add('mini-selected');
+                }
                 el.textContent = i;
                 el.addEventListener('click', () => {
-                    currentDate = new Date(year, month, i);
-                    miniCalDate = new Date(year, month, 1);
+                    const targetDate = new Date(year, month, i);
                     clearEventDetails();
-                    renderCalendar();
-                    renderMiniCalendar();
+                    scrollToDate(targetDate, 'smooth');
                 });
                 grid.appendChild(el);
             }
@@ -986,112 +1566,7 @@
             }
         }
 
-        function renderCalendar() {
-            const grid = document.getElementById('calendarGrid');
-            const monthYear = document.getElementById('monthYear');
-            grid.textContent = '';
-
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const today = new Date();
-
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            days.forEach(d => {
-                const dayEl = document.createElement('div');
-                dayEl.className = 'calendar-day-name';
-                dayEl.textContent = d;
-                grid.appendChild(dayEl);
-            });
-
-            monthYear.textContent = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-            const prevMonthDays = new Date(year, month, 0).getDate();
-            for (let i = 0; i < firstDay; i++) {
-                const spacer = document.createElement('div');
-                spacer.className = 'calendar-day';
-                const dayNum = document.createElement('span');
-                dayNum.className = 'day-number';
-                dayNum.textContent = prevMonthDays - firstDay + 1 + i;
-                spacer.appendChild(dayNum);
-                grid.appendChild(spacer);
-            }
-
-            for (let i = 1; i <= daysInMonth; i++) {
-                const dayEl = document.createElement('div');
-                dayEl.className = 'calendar-day current-month';
-
-                const isToday = year === today.getFullYear() && month === today.getMonth() && i === today.getDate();
-
-                const dayNum = document.createElement('span');
-                if (isToday) {
-                    dayNum.className = 'today-marker';
-                } else {
-                    dayNum.className = 'day-number';
-                }
-                dayNum.textContent = i;
-                dayEl.appendChild(dayNum);
-
-                const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                const dayEvents = eventsData.filter(e => {
-                    if (!e.dtstart) return false;
-                    return dtToDateStr(e.dtstart) === currentDayStr;
-                });
-
-                if (dayEvents.length > 0) {
-                    dayEl.classList.add('has-event');
-                    dayEvents.slice(0, 2).forEach(evt => {
-                        const chip = document.createElement('div');
-                        chip.className = 'event-chip';
-                        chip.textContent = evt.summary || 'Event';
-                        // Clicking a chip shows only that specific event
-                        chip.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                            dayEl.classList.add('selected');
-                            showEventDetails(evt);
-                        });
-                        dayEl.appendChild(chip);
-                    });
-                    if (dayEvents.length > 2) {
-                        const more = document.createElement('div');
-                        more.className = 'event-chip-more';
-                        more.textContent = `+${dayEvents.length - 2} more`;
-                        dayEl.appendChild(more);
-                    }
-                    // Clicking the day cell (not a chip) shows the first event
-                    dayEl.addEventListener('click', () => {
-                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                        dayEl.classList.add('selected');
-                        showEventDetails(dayEvents[0]);
-                    });
-                } else {
-                    dayEl.addEventListener('click', () => {
-                        clearEventDetails();
-                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                        dayEl.classList.add('selected');
-                    });
-                }
-
-                grid.appendChild(dayEl);
-            }
-
-            // Trailing next-month days to fill the grid to 6 rows
-            const totalCells = firstDay + daysInMonth;
-            const targetCells = totalCells <= 35 ? 35 : 42;
-            const remaining = targetCells - totalCells;
-            for (let i = 1; i <= remaining; i++) {
-                const spacer = document.createElement('div');
-                spacer.className = 'calendar-day';
-                const dayNum = document.createElement('span');
-                dayNum.className = 'day-number';
-                dayNum.textContent = i;
-                spacer.appendChild(dayNum);
-                grid.appendChild(spacer);
-            }
-        }
+        // ─── UPCOMING EVENTS ───
 
         function renderUpcomingEvents() {
             const list = document.getElementById('eventsList');
@@ -1161,10 +1636,7 @@
                     if (!rawDate) return;
 
                     const eventDate = new Date(rawDate);
-                    currentDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), 1);
-                    miniCalDate = new Date(currentDate);
-                    renderCalendar();
-                    renderMiniCalendar();
+                    scrollToDate(eventDate, 'smooth');
 
                     // Find the specific event by uid and show it
                     const targeted = eventsData.find(e => e.uid === evtUid);
@@ -1173,17 +1645,14 @@
             });
         }
 
+        // ─── EVENT DETAILS ───
+
         function escapeHTML(str) {
             return str.replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
             }[tag]));
         }
 
-        /**
-         * showEventDetails(evt)
-         * Accepts a single raw event object from eventsData.
-         * Renders its details into #eventDetailContent and swaps the sidebar view.
-         */
         function showEventDetails(evt) {
             const parsed = parseDtstart(evt.dtstart);
             let endParsed = null;
@@ -1277,9 +1746,7 @@
         }
 
         function clearEventDetails() {
-            selectedDateStr = null;
             document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-            // Swap sidebar back to upcoming events
             document.getElementById('eventDetailView').style.display = 'none';
             document.getElementById('upcomingEventsView').style.display = 'block';
         }

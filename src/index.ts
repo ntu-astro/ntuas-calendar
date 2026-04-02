@@ -1,317 +1,346 @@
 export interface Env {
-  DB: D1Database;
-  ADMIN_PASSWORD: string;
+	DB: D1Database;
+	ADMIN_PASSWORD: string;
 }
 
 async function generateSessionToken(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode("ntuas-admin-session:" + password);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	const encoder = new TextEncoder();
+	const data = encoder.encode('ntuas-admin-session:' + password);
+	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+	const hashArray = Array.from(new Uint8Array(hashBuffer));
+	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function getCookie(request: Request, name: string): string | null {
-  const cookieHeader = request.headers.get("Cookie");
-  if (!cookieHeader) return null;
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-  return match ? match[1] : null;
+	const cookieHeader = request.headers.get('Cookie');
+	if (!cookieHeader) return null;
+	const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+	return match ? match[1] : null;
 }
 
 const fold = (line: string): string => {
-  const parts = [];
-  while (line.length > 75) {
-    parts.push(line.slice(0, 75));
-    line = " " + line.slice(75);
-  }
-  parts.push(line);
-  return parts.join("\r\n");
+	const parts = [];
+	while (line.length > 75) {
+		parts.push(line.slice(0, 75));
+		line = ' ' + line.slice(75);
+	}
+	parts.push(line);
+	return parts.join('\r\n');
 };
 
 const toIcsDate = (dateStr: string | null): string | null => {
-  if (!dateStr) return null;
-  return new Date(dateStr).toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+	if (!dateStr) return null;
+	return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 };
 
 const toIcsDateOnly = (dateStr: string | null): string | null => {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}${m}${day}`;
+	if (!dateStr) return null;
+	const d = new Date(dateStr);
+	const y = d.getUTCFullYear();
+	const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(d.getUTCDate()).padStart(2, '0');
+	return `${y}${m}${day}`;
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
+	async fetch(request: Request, env: Env): Promise<Response> {
+		const url = new URL(request.url);
 
-    // ==========================================
-    // 1. API: FETCH EVENTS (JSON)
-    // ==========================================
-    if (url.pathname === "/api/events" && request.method === "GET") {
-      const { results: events } = await env.DB.prepare("SELECT * FROM events ORDER BY dtstart DESC").all();
-      return Response.json(events);
-    }
+		// ==========================================
+		// 1. API: FETCH EVENTS (JSON)
+		// ==========================================
+		if (url.pathname === '/api/events' && request.method === 'GET') {
+			const { results: events } = await env.DB.prepare('SELECT * FROM events ORDER BY dtstart DESC').all();
+			return Response.json(events);
+		}
 
-    // ==========================================
-    // 2. ADMIN LOGIN / LOGOUT
-    // ==========================================
-    if (url.pathname === "/admin/login" && request.method === "POST") {
-      const formData = await request.formData();
-      const password = formData.get("password") as string;
+		// ==========================================
+		// 2. ADMIN LOGIN / LOGOUT
+		// ==========================================
+		if (url.pathname === '/admin/login' && request.method === 'POST') {
+			const formData = await request.formData();
+			const password = formData.get('password') as string;
 
-      if (password !== env.ADMIN_PASSWORD) {
-        return new Response(LOGIN_HTML(true), { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      }
+			if (password !== env.ADMIN_PASSWORD) {
+				return new Response(LOGIN_HTML(true), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+			}
 
-      const token = await generateSessionToken(env.ADMIN_PASSWORD);
-      return new Response(null, {
-        status: 302,
-        headers: {
-          "Location": "/admin",
-          "Set-Cookie": `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=86400`,
-        },
-      });
-    }
+			const token = await generateSessionToken(env.ADMIN_PASSWORD);
+			return new Response(null, {
+				status: 302,
+				headers: {
+					Location: '/admin',
+					'Set-Cookie': `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=86400`,
+				},
+			});
+		}
 
-    if (url.pathname === "/admin/logout" && request.method === "GET") {
-      return new Response(null, {
-        status: 302,
-        headers: {
-          "Location": "/admin",
-          "Set-Cookie": `admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=0`,
-        },
-      });
-    }
+		if (url.pathname === '/admin/logout' && request.method === 'GET') {
+			return new Response(null, {
+				status: 302,
+				headers: {
+					Location: '/admin',
+					'Set-Cookie': `admin_session=; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=0`,
+				},
+			});
+		}
 
-    // ==========================================
-    // 3. ADMIN DASHBOARD & API
-    // ==========================================
-    if (url.pathname === "/admin") {
-      const sessionCookie = getCookie(request, "admin_session");
-      const validToken = await generateSessionToken(env.ADMIN_PASSWORD);
+		// ==========================================
+		// 3. ADMIN DASHBOARD & API
+		// ==========================================
+		if (url.pathname === '/admin') {
+			const sessionCookie = getCookie(request, 'admin_session');
+			const validToken = await generateSessionToken(env.ADMIN_PASSWORD);
 
-      if (sessionCookie !== validToken) {
-        return new Response(LOGIN_HTML(false), { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      }
+			if (sessionCookie !== validToken) {
+				return new Response(LOGIN_HTML(false), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+			}
 
-      if (request.method === "GET") {
-        return new Response(ADMIN_HTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-      }
+			if (request.method === 'GET') {
+				return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+			}
 
-      if (request.method === "POST") {
-        try {
-          const formData = await request.formData();
-          const action = formData.get("action");
+			if (request.method === 'POST') {
+				try {
+					const formData = await request.formData();
+					const action = formData.get('action');
 
-          if (action === "add") {
-            const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
-            const nowIcs = toIcsDate(new Date().toISOString());
-            const isAllDay = formData.get("is_all_day") === "1";
+					if (action === 'add') {
+						const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
+						const nowIcs = toIcsDate(new Date().toISOString());
+						const isAllDay = formData.get('is_all_day') === '1';
 
-            let dtstart: string | null;
-            let dtend: string | null;
+						let dtstart: string | null;
+						let dtend: string | null;
 
-            if (isAllDay) {
-              dtstart = toIcsDateOnly(formData.get("dtstart") as string);
-              dtend = toIcsDateOnly(formData.get("dtend") as string);
-              // RFC 5545: if no end date, default to next day for a single all-day event
-              if (dtstart && !dtend) {
-                const d = new Date(formData.get("dtstart") as string);
-                d.setUTCDate(d.getUTCDate() + 1);
-                dtend = toIcsDateOnly(d.toISOString());
-              }
-            } else {
-              dtstart = toIcsDate(formData.get("dtstart") as string);
-              dtend = toIcsDate(formData.get("dtend") as string);
-            }
+						if (isAllDay) {
+							dtstart = toIcsDateOnly(formData.get('dtstart') as string);
+							dtend = toIcsDateOnly(formData.get('dtend') as string);
+							// RFC 5545: if no end date, default to next day for a single all-day event
+							if (dtstart && !dtend) {
+								const d = new Date(formData.get('dtstart') as string);
+								d.setUTCDate(d.getUTCDate() + 1);
+								dtend = toIcsDateOnly(d.toISOString());
+							}
+						} else {
+							dtstart = toIcsDate(formData.get('dtstart') as string);
+							dtend = toIcsDate(formData.get('dtend') as string);
+						}
 
-            const summary = formData.get("summary") as string;
-            const description = formData.get("description") as string;
-            const location = formData.get("location") as string;
-            const transp = isAllDay ? "TRANSPARENT" : (formData.get("transp") as string || "OPAQUE");
-            const geo = formData.get("geo") as string;
-            const categories = formData.get("categories") as string;
-            const eventClass = formData.get("class") as string || "PUBLIC";
-            const status = formData.get("status") as string || "CONFIRMED";
-            const eventUrl = formData.get("url") as string;
+						const summary = formData.get('summary') as string;
+						const description = formData.get('description') as string;
+						const location = formData.get('location') as string;
+						const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string) || 'OPAQUE';
+						const geo = formData.get('geo') as string;
+						const categories = formData.get('categories') as string;
+						const eventClass = (formData.get('class') as string) || 'PUBLIC';
+						const status = (formData.get('status') as string) || 'CONFIRMED';
+						const eventUrl = formData.get('url') as string;
 
-            // --- NEW ORGANIZER FORMATTING LOGIC ---
-            const orgName = formData.get("organizer_name") as string;
-            const orgEmail = formData.get("organizer_email") as string;
-            let organizer = null;
+						// --- NEW ORGANIZER FORMATTING LOGIC ---
+						const orgName = formData.get('organizer_name') as string;
+						const orgEmail = formData.get('organizer_email') as string;
+						let organizer = null;
 
-            if (orgName && orgEmail) {
-              organizer = `;CN=${orgName}:mailto:${orgEmail}`;
-            } else if (orgEmail) {
-              organizer = `mailto:${orgEmail}`;
-            }
+						if (orgName && orgEmail) {
+							organizer = `;CN=${orgName}:mailto:${orgEmail}`;
+						} else if (orgEmail) {
+							organizer = `mailto:${orgEmail}`;
+						}
 
-            await env.DB.prepare(`
+						await env.DB.prepare(
+							`
               INSERT INTO events (
                 uid, calendar_id, dtstamp, created, last_modified, dtstart, dtend, 
                 summary, description, location, transp, geo, categories, class, status, url, organizer
               ) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
-              uid, nowIcs, nowIcs, nowIcs, dtstart, dtend,
-              summary, description, location, transp, geo, categories, eventClass, status, eventUrl, organizer
-            ).run();
+            `,
+						)
+							.bind(
+								uid,
+								nowIcs,
+								nowIcs,
+								nowIcs,
+								dtstart,
+								dtend,
+								summary,
+								description,
+								location,
+								transp,
+								geo,
+								categories,
+								eventClass,
+								status,
+								eventUrl,
+								organizer,
+							)
+							.run();
 
-            const attachUri = formData.get("attach_uri") as string;
-            if (attachUri) {
-              await env.DB.prepare("INSERT INTO event_attachments (event_uid, uri, fmttype) VALUES (?, ?, ?)")
-                .bind(uid, attachUri, formData.get("attach_fmttype") as string || null).run();
-            }
+						const attachUri = formData.get('attach_uri') as string;
+						if (attachUri) {
+							await env.DB.prepare('INSERT INTO event_attachments (event_uid, uri, fmttype) VALUES (?, ?, ?)')
+								.bind(uid, attachUri, (formData.get('attach_fmttype') as string) || null)
+								.run();
+						}
 
-            const rawAlarmTrigger = formData.get("alarm_trigger") as string;
-            if (rawAlarmTrigger) {
-              const triggerMap: Record<string, string> = {
-                "At time of event": "-PT0M",
-                "5 minutes before": "-PT5M",
-                "10 minutes before": "-PT10M",
-                "15 minutes before": "-PT15M",
-                "30 minutes before": "-PT30M",
-                "1 hour before": "-PT1H",
-                "2 hours before": "-PT2H",
-                "1 day before": "-P1D",
-                "2 days before": "-P2D",
-                "1 week before": "-P1W"
-              };
-              const alarmTrigger = triggerMap[rawAlarmTrigger] || rawAlarmTrigger;
+						const rawAlarmTrigger = formData.get('alarm_trigger') as string;
+						if (rawAlarmTrigger) {
+							const triggerMap: Record<string, string> = {
+								'At time of event': '-PT0M',
+								'5 minutes before': '-PT5M',
+								'10 minutes before': '-PT10M',
+								'15 minutes before': '-PT15M',
+								'30 minutes before': '-PT30M',
+								'1 hour before': '-PT1H',
+								'2 hours before': '-PT2H',
+								'1 day before': '-P1D',
+								'2 days before': '-P2D',
+								'1 week before': '-P1W',
+							};
+							const alarmTrigger = triggerMap[rawAlarmTrigger] || rawAlarmTrigger;
 
-              await env.DB.prepare("INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES (?, ?, ?, ?)")
-                .bind(uid, formData.get("alarm_action") as string || "DISPLAY", alarmTrigger, formData.get("alarm_desc") as string || "Event Reminder").run();
-            }
-          }
-          else if (action === "update") {
-            const uid = formData.get("uid") as string;
-            const summary = formData.get("summary") as string;
-            const isAllDay = formData.get("is_all_day") === "1";
+							await env.DB.prepare('INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES (?, ?, ?, ?)')
+								.bind(
+									uid,
+									(formData.get('alarm_action') as string) || 'DISPLAY',
+									alarmTrigger,
+									(formData.get('alarm_desc') as string) || 'Event Reminder',
+								)
+								.run();
+						}
+					} else if (action === 'update') {
+						const uid = formData.get('uid') as string;
+						const summary = formData.get('summary') as string;
+						const isAllDay = formData.get('is_all_day') === '1';
 
-            let dtstart: string | null;
-            let dtend: string | null;
+						let dtstart: string | null;
+						let dtend: string | null;
 
-            if (isAllDay) {
-              dtstart = toIcsDateOnly(formData.get("dtstart") as string);
-              dtend = toIcsDateOnly(formData.get("dtend") as string);
-              if (dtstart && !dtend) {
-                const d = new Date(formData.get("dtstart") as string);
-                d.setUTCDate(d.getUTCDate() + 1);
-                dtend = toIcsDateOnly(d.toISOString());
-              }
-            } else {
-              dtstart = toIcsDate(formData.get("dtstart") as string);
-              dtend = toIcsDate(formData.get("dtend") as string);
-            }
+						if (isAllDay) {
+							dtstart = toIcsDateOnly(formData.get('dtstart') as string);
+							dtend = toIcsDateOnly(formData.get('dtend') as string);
+							if (dtstart && !dtend) {
+								const d = new Date(formData.get('dtstart') as string);
+								d.setUTCDate(d.getUTCDate() + 1);
+								dtend = toIcsDateOnly(d.toISOString());
+							}
+						} else {
+							dtstart = toIcsDate(formData.get('dtstart') as string);
+							dtend = toIcsDate(formData.get('dtend') as string);
+						}
 
-            const status = formData.get("status") as string || "CONFIRMED";
-            const location = formData.get("location") as string || null;
-            const geo = formData.get("geo") as string || null;
-            const description = formData.get("description") as string || null;
-            const transp = isAllDay ? "TRANSPARENT" : (formData.get("transp") as string || "OPAQUE");
-            const nowIcs = toIcsDate(new Date().toISOString());
+						const status = (formData.get('status') as string) || 'CONFIRMED';
+						const location = (formData.get('location') as string) || null;
+						const geo = (formData.get('geo') as string) || null;
+						const description = (formData.get('description') as string) || null;
+						const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string) || 'OPAQUE';
+						const nowIcs = toIcsDate(new Date().toISOString());
 
-            await env.DB.prepare(`
+						await env.DB.prepare(
+							`
               UPDATE events
               SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?, transp = ?, last_modified = ?, sequence = sequence + 1
               WHERE uid = ?
-            `).bind(summary, dtstart, dtend, status, location, geo, description, transp, nowIcs, uid).run();
-          }
-          else if (action === "delete") {
-            const uid = formData.get("uid") as string;
-            const password = formData.get("password") as string;
-            if (password !== env.ADMIN_PASSWORD) {
-              return Response.json({ success: false, error: "Incorrect password for deletion." }, { status: 401 });
-            }
-            await env.DB.prepare("DELETE FROM events WHERE uid = ?").bind(uid).run();
-          }
+            `,
+						)
+							.bind(summary, dtstart, dtend, status, location, geo, description, transp, nowIcs, uid)
+							.run();
+					} else if (action === 'delete') {
+						const uid = formData.get('uid') as string;
+						const password = formData.get('password') as string;
+						if (password !== env.ADMIN_PASSWORD) {
+							return Response.json({ success: false, error: 'Incorrect password for deletion.' }, { status: 401 });
+						}
+						await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
+					}
 
-          return Response.json({ success: true, message: "Action completed successfully" });
-        } catch (e: any) {
-          return Response.json({ success: false, error: e.message || String(e) }, { status: 500 });
-        }
-      }
-    }
+					return Response.json({ success: true, message: 'Action completed successfully' });
+				} catch (e: any) {
+					return Response.json({ success: false, error: e.message || String(e) }, { status: 500 });
+				}
+			}
+		}
 
-    // ==========================================
-    // 3. CALENDAR FEED (RFC 5545)
-    // ==========================================
-    if (url.pathname === "/subscribe" || url.pathname === "/calendar.ics") {
-      const cal = await env.DB.prepare("SELECT * FROM calendars LIMIT 1").first<any>();
-      if (!cal) return new Response("Calendar not found", { status: 404 });
+		// ==========================================
+		// 3. CALENDAR FEED (RFC 5545)
+		// ==========================================
+		if (url.pathname === '/subscribe' || url.pathname === '/calendar.ics') {
+			const cal = await env.DB.prepare('SELECT * FROM calendars LIMIT 1').first<any>();
+			if (!cal) return new Response('Calendar not found', { status: 404 });
 
-      const { results: events } = await env.DB.prepare("SELECT * FROM events WHERE calendar_id = ? ORDER BY dtstart ASC").bind(cal.id).all();
-      const { results: alarms } = await env.DB.prepare("SELECT * FROM event_alarms").all();
-      const { results: attachments } = await env.DB.prepare("SELECT * FROM event_attachments").all();
+			const { results: events } = await env.DB.prepare('SELECT * FROM events WHERE calendar_id = ? ORDER BY dtstart ASC')
+				.bind(cal.id)
+				.all();
+			const { results: alarms } = await env.DB.prepare('SELECT * FROM event_alarms').all();
+			const { results: attachments } = await env.DB.prepare('SELECT * FROM event_attachments').all();
 
-      let icsLines = [
-        "BEGIN:VCALENDAR",
-        `VERSION:${cal.version || "2.0"}`,
-        `PRODID:${cal.prodid}`,
-        `CALSCALE:${cal.calscale || "GREGORIAN"}`,
-      ];
-      if (cal.x_wr_calname) icsLines.push(`X-WR-CALNAME:${cal.x_wr_calname}`);
-      if (cal.x_wr_timezone) icsLines.push(`X-WR-TIMEZONE:${cal.x_wr_timezone}`);
+			let icsLines = [
+				'BEGIN:VCALENDAR',
+				`VERSION:${cal.version || '2.0'}`,
+				`PRODID:${cal.prodid}`,
+				`CALSCALE:${cal.calscale || 'GREGORIAN'}`,
+			];
+			if (cal.x_wr_calname) icsLines.push(`X-WR-CALNAME:${cal.x_wr_calname}`);
+			if (cal.x_wr_timezone) icsLines.push(`X-WR-TIMEZONE:${cal.x_wr_timezone}`);
 
-      for (const event of events as any[]) {
-        const isAllDay = event.dtstart && !event.dtstart.includes('T');
-        icsLines.push("BEGIN:VEVENT", `UID:${event.uid}`, `DTSTAMP:${event.dtstamp}`);
+			for (const event of events as any[]) {
+				const isAllDay = event.dtstart && !event.dtstart.includes('T');
+				icsLines.push('BEGIN:VEVENT', `UID:${event.uid}`, `DTSTAMP:${event.dtstamp}`);
 
-        if (isAllDay) {
-          icsLines.push(`DTSTART;VALUE=DATE:${event.dtstart}`);
-          if (event.dtend) icsLines.push(`DTEND;VALUE=DATE:${event.dtend}`);
-        } else {
-          icsLines.push(`DTSTART:${event.dtstart}`);
-          if (event.dtend) icsLines.push(`DTEND:${event.dtend}`);
-        }
-        if (event.duration) icsLines.push(`DURATION:${event.duration}`);
-        if (event.created) icsLines.push(`CREATED:${event.created}`);
-        if (event.last_modified) icsLines.push(`LAST-MODIFIED:${event.last_modified}`);
-        if (event.summary) icsLines.push(`SUMMARY:${event.summary}`);
-        if (event.description) icsLines.push(`DESCRIPTION:${event.description.replace(/\n/g, "\\n")}`);
-        if (event.location) icsLines.push(`LOCATION:${event.location}`);
-        if (event.geo) icsLines.push(`GEO:${event.geo}`);
-        if (event.categories) icsLines.push(`CATEGORIES:${event.categories}`);
-        if (event.url) icsLines.push(`URL:${event.url}`);
+				if (isAllDay) {
+					icsLines.push(`DTSTART;VALUE=DATE:${event.dtstart}`);
+					if (event.dtend) icsLines.push(`DTEND;VALUE=DATE:${event.dtend}`);
+				} else {
+					icsLines.push(`DTSTART:${event.dtstart}`);
+					if (event.dtend) icsLines.push(`DTEND:${event.dtend}`);
+				}
+				if (event.duration) icsLines.push(`DURATION:${event.duration}`);
+				if (event.created) icsLines.push(`CREATED:${event.created}`);
+				if (event.last_modified) icsLines.push(`LAST-MODIFIED:${event.last_modified}`);
+				if (event.summary) icsLines.push(`SUMMARY:${event.summary}`);
+				if (event.description) icsLines.push(`DESCRIPTION:${event.description.replace(/\n/g, '\\n')}`);
+				if (event.location) icsLines.push(`LOCATION:${event.location}`);
+				if (event.geo) icsLines.push(`GEO:${event.geo}`);
+				if (event.categories) icsLines.push(`CATEGORIES:${event.categories}`);
+				if (event.url) icsLines.push(`URL:${event.url}`);
 
-        // --- ORGANIZER INJECTION ---
-        if (event.organizer) icsLines.push(`ORGANIZER${event.organizer}`);
+				// --- ORGANIZER INJECTION ---
+				if (event.organizer) icsLines.push(`ORGANIZER${event.organizer}`);
 
-        icsLines.push(`CLASS:${event.class || "PUBLIC"}`);
-        icsLines.push(`STATUS:${event.status || "CONFIRMED"}`);
-        icsLines.push(`TRANSP:${event.transp || "OPAQUE"}`);
+				icsLines.push(`CLASS:${event.class || 'PUBLIC'}`);
+				icsLines.push(`STATUS:${event.status || 'CONFIRMED'}`);
+				icsLines.push(`TRANSP:${event.transp || 'OPAQUE'}`);
 
-        const eventAttachments = attachments.filter((a: any) => a.event_uid === event.uid);
-        for (const att of eventAttachments) {
-          icsLines.push(`ATTACH${att.fmttype ? `;FMTTYPE=${att.fmttype}` : ''}:${att.uri}`);
-        }
+				const eventAttachments = attachments.filter((a: any) => a.event_uid === event.uid);
+				for (const att of eventAttachments) {
+					icsLines.push(`ATTACH${att.fmttype ? `;FMTTYPE=${att.fmttype}` : ''}:${att.uri}`);
+				}
 
-        const eventAlarms = alarms.filter((a: any) => a.event_uid === event.uid);
-        for (const alarm of eventAlarms) {
-          icsLines.push("BEGIN:VALARM", `ACTION:${alarm.action}`, `TRIGGER:${alarm.trigger}`);
-          if (alarm.description) icsLines.push(`DESCRIPTION:${alarm.description}`);
-          if (alarm.summary) icsLines.push(`SUMMARY:${alarm.summary}`);
-          icsLines.push("END:VALARM");
-        }
+				const eventAlarms = alarms.filter((a: any) => a.event_uid === event.uid);
+				for (const alarm of eventAlarms) {
+					icsLines.push('BEGIN:VALARM', `ACTION:${alarm.action}`, `TRIGGER:${alarm.trigger}`);
+					if (alarm.description) icsLines.push(`DESCRIPTION:${alarm.description}`);
+					if (alarm.summary) icsLines.push(`SUMMARY:${alarm.summary}`);
+					icsLines.push('END:VALARM');
+				}
 
-        icsLines.push("END:VEVENT");
-      }
+				icsLines.push('END:VEVENT');
+			}
 
-      icsLines.push("END:VCALENDAR");
+			icsLines.push('END:VCALENDAR');
 
-      return new Response(icsLines.map(fold).join("\r\n") + "\r\n", {
-        headers: {
-          "Content-Type": "text/calendar; charset=utf-8",
-          "Content-Disposition": 'inline; filename="ntuas.ics"',
-          "Cache-Control": "public, max-age=3600",
-          "Access-Control-Allow-Origin": "*"
-        },
-      });
-    }
+			return new Response(icsLines.map(fold).join('\r\n') + '\r\n', {
+				headers: {
+					'Content-Type': 'text/calendar; charset=utf-8',
+					'Content-Disposition': 'inline; filename="ntuas.ics"',
+					'Cache-Control': 'public, max-age=3600',
+					'Access-Control-Allow-Origin': '*',
+				},
+			});
+		}
 
-    return new Response("404 - Endpoint not found.", { status: 404 });
-  }
+		return new Response('404 - Endpoint not found.', { status: 404 });
+	},
 } satisfies ExportedHandler<Env>;
 
 // ==========================================
@@ -326,151 +355,185 @@ const ADMIN_HTML = `
   <title>NTUAS Calendar Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #121212;
-      --surface-orbital: #1E1E1E;
-      --text-primary: #FFFFFF;
-      --text-secondary: #A1A1A1;
-      --accent-indigo: #18A0FB;
-      --accent-hover: #1584D1;
-      --highlight-gold: #18A0FB;
-      --border-dark: #333333;
-      --success: #34D399;
-      --danger: #F87171;
-      --danger-hover: #EF4444;
-      --warning: #D97706;
-      --warning-hover: #B45309;
+      --bg-main: #ffffff;
+      --bg-sidebar: #f7f7f5;
+      --bg-hover: #f0f0f0;
+      --text-primary: #111111;
+      --text-secondary: #60605c;
+      --text-tertiary: #9b9b97;
+      --accent-blue: #2383e2;
+      --accent-blue-hover: #1b6ec2;
+      --accent-blue-light: rgba(35, 131, 226, 0.08);
+      --border: rgba(0, 0, 0, 0.06);
+      --border-strong: #e0e0de;
+      --success: #1a7f37;
+      --danger: #cf222e;
+      --danger-hover: #a40e26;
+      --danger-light: #ffeef0;
+      --warning: #9a6700;
+      --radius-sm: 4px;
+      --radius-md: 6px;
     }
 
     * { box-sizing: border-box; }
 
-    body { 
+    body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-void); 
-      color: var(--text-primary); 
-      padding: 2rem; 
-      max-width: 900px; 
-      margin: auto; 
+      background-color: var(--bg-sidebar);
+      color: var(--text-primary);
+      padding: 0;
+      margin: 0;
       -webkit-font-smoothing: antialiased;
       line-height: 1.5;
+      font-size: 14px;
     }
-    
-    h1 { 
-      font-size: clamp(2rem, 4vw, 2.5rem); 
-      font-weight: 800; 
-      margin-top: 0; 
-      margin-bottom: 2rem; 
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 24px;
+      height: 48px;
+      background: var(--bg-sidebar);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .admin-header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0;
       color: var(--text-primary);
-      letter-spacing: -0.02em; 
+      letter-spacing: -0.01em;
     }
-    
-    h2 { 
-      font-size: 1.5rem; 
-      font-weight: 700; 
-      margin-top: 0; 
-      margin-bottom: 1.5rem; 
+
+    .logout-link {
+      color: var(--text-tertiary);
+      font-size: 12px;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s;
     }
-    
-    h3 { 
-      font-size: 1rem; 
-      font-weight: 700; 
-      border-bottom: 1px solid var(--border-dark); 
-      padding-bottom: 0.5rem; 
-      margin-top: 2rem; 
-      margin-bottom: 1rem;
-      color: var(--text-secondary); 
+
+    .logout-link:hover {
+      color: var(--text-secondary);
+      background: var(--bg-hover);
+    }
+
+    .admin-body {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+
+    h3 {
+      font-size: 11px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-top: 20px;
+      margin-bottom: 12px;
+      color: var(--text-tertiary);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
     }
-    
-    .panel { 
-      background: var(--surface-orbital); 
-      padding: 2.5rem; 
-      border-radius: 20px; 
-      border: 1px solid var(--border-dark); 
-      margin-bottom: 2rem; 
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+
+    .panel {
+      background: var(--bg-main);
+      padding: 24px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-strong);
+      margin-bottom: 20px;
     }
-    
-    form.add-form { display: flex; flex-direction: column; gap: 1.25rem; }
-    .row { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-    .row-3 { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
-    
+
+    form.add-form { display: flex; flex-direction: column; gap: 16px; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .row-3 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
     @media (min-width: 600px) {
       .add-form .row { grid-template-columns: 1fr 1fr; }
       .add-form .row-3 { grid-template-columns: 1fr 1fr 1fr; }
-      .modal form .row { grid-template-columns: 1fr !important; } /* Force single column in modal to prevent overflow */
+      .modal form .row { grid-template-columns: 1fr !important; }
     }
-    
-    label { 
-      font-size: 0.8125rem; 
-      font-weight: 600; 
-      margin-bottom: 0.5rem; 
-      color: var(--text-secondary); 
-      display: block; 
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--text-tertiary);
+      display: block;
     }
-    
-    input, textarea, select { 
-      padding: 0.75rem 1rem; 
-      border-radius: 8px; 
-      border: 1px solid var(--border-dark); 
-      background: rgba(255, 255, 255, 0.02); 
-      color: var(--text-primary); 
-      width: 100%; 
-      max-width: 100%; /* Ensure it does not overflow */
-      box-sizing: border-box; /* Ensure padding doesn't push it out */
+
+    input, textarea, select {
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-main);
+      color: var(--text-primary);
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
       font-family: inherit;
-      font-size: 0.9375rem;
-      transition: all 0.2s;
+      font-size: 13px;
+      transition: border-color 0.15s;
     }
-    
+
     input:focus, textarea:focus, select:focus {
       outline: none;
-      border-color: var(--text-secondary);
-      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px var(--accent-blue-light);
     }
-    
-    button { 
+
+    button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: var(--accent-indigo); 
-      color: white; 
-      padding: 0.875rem 1.5rem; 
-      border: none; 
-      border-radius: 10px; 
-      cursor: pointer; 
-      font-weight: 600; 
-      font-size: 1rem;
-      width: 100%; 
-      margin-top: 1rem; 
-      transition: all 0.2s ease; 
-      box-shadow: 0 4px 14px 0 rgba(24, 160, 251, 0.2);
+      background: var(--accent-blue);
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+      font-family: inherit;
+      width: 100%;
+      margin-top: 8px;
+      transition: background 0.15s;
     }
-    
-    button:hover:not(:disabled) { 
-      background: var(--accent-hover); 
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(24, 160, 251, 0.3);
+
+    button:hover:not(:disabled) {
+      background: var(--accent-blue-hover);
     }
-    
-    button:disabled { 
-      background: rgba(24, 160, 251, 0.4); 
-      cursor: not-allowed; 
-      box-shadow: none;
-      transform: none;
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
-    
-    .event-card { 
-      display: flex; 
+
+    .event-card {
+      display: flex;
       flex-direction: column;
-      background: transparent; 
-      padding: 1.5rem 0; 
-      margin-bottom: 0; 
-      border-bottom: 1px solid var(--border-dark); 
-      gap: 1rem; 
+      background: transparent;
+      padding: 14px 0;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
     }
 
     .event-card:last-child {
@@ -481,142 +544,137 @@ const ADMIN_HTML = `
     @media (min-width: 650px) {
       .event-card {
         flex-direction: row;
-        justify-content: space-between; 
-        align-items: center; 
+        justify-content: space-between;
+        align-items: center;
       }
     }
-    
+
     .event-info { flex-grow: 1; min-width: 0; }
-    .event-info strong { 
-      display: block; 
-      font-size: 1.05rem; 
-      font-weight: 600; 
-      margin-bottom: 0.25rem;
+    .event-info strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 2px;
       color: var(--text-primary);
     }
-    
+
     .event-status {
       display: inline-block;
-      padding: 0.15rem 0.5rem;
-      background: rgba(255,255,255,0.05);
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      margin-left: 0.5rem;
+      padding: 2px 6px;
+      background: var(--bg-sidebar);
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-left: 6px;
       vertical-align: middle;
       color: var(--text-secondary);
     }
 
-    .event-card form { 
-      flex-shrink: 0; 
-      display: flex; 
-      align-items: center; 
-      gap: 0.75rem; 
-      margin: 0; 
+    .event-card form {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
     }
-    
-    .btn-delete { 
-      background: var(--danger); 
-      padding: 0.6rem 1rem; 
-      width: auto; 
-      margin-top: 0; 
-      font-size: 0.875rem;
-      box-shadow: none;
-    }
-    
-    .btn-delete:hover:not(:disabled) { 
-      background: var(--danger-hover); 
-      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
-    }
-    
-    .btn-edit { 
-      background: transparent; 
-      border: 1px solid var(--border-dark);
-      color: var(--text-secondary);
-      padding: 0.6rem 1rem; 
-      width: auto; 
+
+    .btn-delete {
+      background: var(--danger-light);
+      color: var(--danger);
+      padding: 6px 12px;
+      width: auto;
       margin-top: 0;
-      font-size: 0.875rem;
-      box-shadow: none;
+      font-size: 12px;
     }
-    
-    .btn-edit:hover:not(:disabled) { 
-      background: rgba(255,255,255,0.05); 
+
+    .btn-delete:hover:not(:disabled) {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-edit {
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      width: auto;
+      margin-top: 0;
+      font-size: 12px;
+    }
+
+    .btn-edit:hover:not(:disabled) {
+      background: var(--bg-hover);
       color: var(--text-primary);
-      border-color: var(--text-secondary);
-      transform: none;
-      box-shadow: none;
+      border-color: var(--border-strong);
     }
-    
-    .del-pass { width: 140px; padding: 0.6rem 0.75rem; }
-    
-    .modal-overlay { 
-      display: none; 
-      position: fixed; 
-      inset: 0; 
-      background: rgba(0, 0, 0, 0.75); 
-      backdrop-filter: blur(4px);
-      z-index: 1000; 
-      align-items: center; 
-      justify-content: center; 
+
+    .del-pass { width: 120px; padding: 6px 8px; font-size: 12px; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
     }
-    
+
     .modal-overlay.open { display: flex; }
-    
-    .modal { 
-      background: var(--surface-orbital); 
-      border: 1px solid var(--border-dark); 
-      border-radius: 20px; 
-      padding: 2.5rem; 
-      width: 90%; 
-      max-width: 520px; 
-      position: relative; 
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+    .modal {
+      background: var(--bg-main);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 24px;
+      width: 90%;
+      max-width: 520px;
+      position: relative;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
       max-height: 90vh;
       overflow-y: auto;
     }
-    
+
     .modal h2 { margin-top: 0; }
-    
-    .modal::-webkit-scrollbar { width: 8px; }
+
+    .modal::-webkit-scrollbar { width: 6px; }
     .modal::-webkit-scrollbar-track { background: transparent; }
-    .modal::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
-    .modal::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
-    
-    .modal-close { 
-      position: absolute; 
-      top: 1.25rem; 
-      right: 1.25rem; 
-      background: none; 
-      border: none; 
-      color: var(--text-secondary); 
-      font-size: 1.5rem; 
-      cursor: pointer; 
-      width: auto; 
-      padding: 0.25rem 0.5rem; 
-      margin: 0; 
-      box-shadow: none;
+    .modal::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+    .modal::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: 18px;
+      cursor: pointer;
+      width: auto;
+      padding: 4px 8px;
+      margin: 0;
     }
-    
-    .modal-close:hover { 
-      color: var(--text-primary); 
-      background: rgba(255,255,255,0.05); 
-      border-radius: 6px;
-      transform: none;
+
+    .modal-close:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+      border-radius: var(--radius-sm);
     }
-    
-    .modal form { display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .modal form { display: flex; flex-direction: column; gap: 16px; }
 
     .toggle-row {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.25rem;
+      gap: 10px;
+      margin-bottom: 4px;
     }
     .toggle-row label.toggle-label {
-      font-size: 0.9375rem;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 500;
       color: var(--text-primary);
       margin: 0;
       cursor: pointer;
@@ -624,8 +682,8 @@ const ADMIN_HTML = `
     }
     .toggle-switch {
       position: relative;
-      width: 44px;
-      height: 24px;
+      width: 40px;
+      height: 22px;
       flex-shrink: 0;
     }
     .toggle-switch input {
@@ -643,49 +701,50 @@ const ADMIN_HTML = `
       margin: 0;
       padding: 0;
       display: block;
-      background: var(--border-dark);
-      border-radius: 24px;
-      transition: background 0.25s ease;
+      background: var(--border-strong);
+      border-radius: 22px;
+      transition: background 0.2s ease;
       font-size: 0;
       color: transparent;
     }
     .toggle-switch .slider::before {
       content: '';
       position: absolute;
-      height: 18px;
-      width: 18px;
+      height: 16px;
+      width: 16px;
       left: 3px;
       bottom: 3px;
-      background: var(--text-secondary);
+      background: white;
       border-radius: 50%;
-      transition: transform 0.25s ease, background 0.25s ease;
+      transition: transform 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
     .toggle-switch input:checked + .slider {
-      background: var(--accent-indigo);
+      background: var(--accent-blue);
     }
     .toggle-switch input:checked + .slider::before {
-      transform: translateX(20px);
-      background: white;
+      transform: translateX(18px);
     }
     .all-day-badge {
       display: inline-block;
-      padding: 0.1rem 0.4rem;
-      background: rgba(24, 160, 251, 0.15);
-      color: var(--accent-indigo);
-      border-radius: 4px;
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      margin-left: 0.5rem;
+      padding: 2px 6px;
+      background: var(--accent-blue-light);
+      color: var(--accent-blue);
+      border-radius: var(--radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-left: 6px;
       vertical-align: middle;
     }
   </style>
 </head>
 <body>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <h1 style="margin: 0;">Admin Dashboard</h1>
-    <a href="/admin/logout" style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 600; text-decoration: none; padding: 0.5rem 1rem; border: 1px solid var(--border-dark); border-radius: 8px; transition: all 0.2s;" onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='var(--text-secondary)'" onmouseout="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border-dark)'">Logout</a>
+  <div class="admin-header">
+    <h1>Admin Dashboard</h1>
+    <a href="/admin/logout" class="logout-link">Logout</a>
   </div>
+  <div class="admin-body">
   
   <div class="panel">
     <h2>Create Event</h2>
@@ -837,6 +896,8 @@ const ADMIN_HTML = `
     <div id="events-container"><p>Loading events...</p></div>
   </div>
 
+  </div>
+
   <div class="modal-overlay" id="editModal">
     <div class="modal">
       <button class="modal-close" onclick="closeEditModal()">&times;</button>
@@ -877,7 +938,7 @@ const ADMIN_HTML = `
           </select>
         </div>
 
-        <div id="edit-more-details" style="display: none; border-top: 1px solid var(--border-dark); padding-top: 1rem; margin-top: 0.5rem;">
+        <div id="edit-more-details" style="display: none; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;">
           <div class="row">
             <div>
               <label>Location</label>
@@ -888,13 +949,13 @@ const ADMIN_HTML = `
               <input type="text" name="geo" id="edit-geo" placeholder="Auto-fills from location">
             </div>
           </div>
-          <div style="margin-top: 1.25rem;">
+          <div style="margin-top: 16px;">
             <label>Description</label>
             <textarea name="description" id="edit-description" rows="3"></textarea>
           </div>
         </div>
 
-        <button type="button" id="editMoreBtn" onclick="toggleMoreDetails()" style="background: transparent; border: 1px solid var(--border-dark); color: var(--text-secondary); margin-top: 0; box-shadow: none;">Show More Details</button>
+        <button type="button" id="editMoreBtn" onclick="toggleMoreDetails()" style="background: transparent; border: 1px solid var(--border-strong); color: var(--text-secondary); margin-top: 0;">Show More Details</button>
         <button type="submit" id="editSubmitBtn">Save Changes</button>
       </form>
     </div>
@@ -953,7 +1014,7 @@ const ADMIN_HTML = `
             allEvents = await res.json();
             currentPage = 1;
             renderEventsPage();
-        } catch (err) { document.getElementById('events-container').innerHTML = '<p style="color:red;">Error loading events.</p>'; }
+        } catch (err) { document.getElementById('events-container').textContent = 'Error loading events.'; }
     }
 
     function renderEventsPage() {
@@ -979,7 +1040,7 @@ const ADMIN_HTML = `
                   <div class="event-card">
                     <div class="event-info">
                       <strong>\${e.summary}</strong> <span class="event-status">\${e.status}</span>\${isAllDay ? '<span class="all-day-badge">ALL DAY</span>' : ''}<br>
-                      <small style="color: var(--text-secondary); display: block; margin-top: 0.25rem;">\${isAllDay ? '' : 'Starts: '}\${displayDate}</small>
+                      <small style="color: var(--text-tertiary); display: block; margin-top: 2px; font-size: 12px;">\${isAllDay ? '' : 'Starts: '}\${displayDate}</small>
                     </div>
                     <button class="btn-edit" 
                       data-uid="\${e.uid}" 
@@ -999,10 +1060,10 @@ const ADMIN_HTML = `
         }).join('');
 
         const paginationHtml = totalPages > 1 ? \`
-          <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-dark);">
-            <button onclick="changePage(-1)" \${currentPage === 1 ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-dark); color: \${currentPage === 1 ? 'var(--border-dark)' : 'var(--text-secondary)'}; padding: 0.5rem 1rem; box-shadow: none;">Previous</button>
-            <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 600;">Page \${currentPage} of \${totalPages}</span>
-            <button onclick="changePage(1)" \${currentPage === totalPages ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-dark); color: \${currentPage === totalPages ? 'var(--border-dark)' : 'var(--text-secondary)'}; padding: 0.5rem 1rem; box-shadow: none;">Next</button>
+          <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+            <button onclick="changePage(-1)" \${currentPage === 1 ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-strong); color: \${currentPage === 1 ? 'var(--border-strong)' : 'var(--text-secondary)'}; padding: 6px 12px; font-size: 12px;">\u2039 Previous</button>
+            <span style="color: var(--text-tertiary); font-size: 12px; font-weight: 500;">Page \${currentPage} of \${totalPages}</span>
+            <button onclick="changePage(1)" \${currentPage === totalPages ? 'disabled' : ''} style="width: auto; margin-top: 0; background: transparent; border: 1px solid var(--border-strong); color: \${currentPage === totalPages ? 'var(--border-strong)' : 'var(--text-secondary)'}; padding: 6px 12px; font-size: 12px;">Next \u203a</button>
           </div>
         \` : '';
 
@@ -1222,92 +1283,93 @@ const LOGIN_HTML = (error: boolean) => `
   <title>Admin Login — NTUAS Calendar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #121212;
-      --surface-orbital: #1E1E1E;
-      --text-primary: #FFFFFF;
-      --text-secondary: #A1A1A1;
-      --accent-indigo: #18A0FB;
-      --accent-hover: #1584D1;
-      --border-dark: #333333;
-      --danger: #F87171;
+      --bg-main: #f7f7f5;
+      --bg-card: #ffffff;
+      --text-primary: #111111;
+      --text-secondary: #60605c;
+      --text-tertiary: #9b9b97;
+      --accent-blue: #2383e2;
+      --accent-blue-hover: #1b6ec2;
+      --accent-blue-light: rgba(35, 131, 226, 0.08);
+      --border-strong: #e0e0de;
+      --danger: #cf222e;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-void);
+      background: var(--bg-main);
       color: var(--text-primary);
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      font-size: 14px;
     }
     .login-card {
-      background: var(--surface-orbital);
-      border: 1px solid var(--border-dark);
-      border-radius: 20px;
-      padding: 3rem 2.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 40px 32px;
       width: 90%;
-      max-width: 400px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      max-width: 380px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       text-align: center;
     }
     .login-card h1 {
-      font-size: 1.75rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.5rem;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+      color: var(--text-primary);
     }
     .login-card p {
-      color: var(--text-secondary);
-      font-size: 0.875rem;
-      margin-bottom: 2rem;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      margin-bottom: 24px;
     }
     .login-card input {
       width: 100%;
-      padding: 0.875rem 1rem;
-      border-radius: 10px;
-      border: 1px solid var(--border-dark);
-      background: rgba(255, 255, 255, 0.02);
+      padding: 10px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-card);
       color: var(--text-primary);
       font-family: inherit;
-      font-size: 1rem;
-      transition: border-color 0.2s;
+      font-size: 14px;
+      transition: border-color 0.15s;
       text-align: center;
     }
     .login-card input:focus {
       outline: none;
-      border-color: var(--accent-indigo);
-      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px var(--accent-blue-light);
     }
     .login-card button {
       width: 100%;
-      padding: 0.875rem;
-      margin-top: 1.25rem;
+      padding: 10px;
+      margin-top: 12px;
       border: none;
-      border-radius: 10px;
-      background: var(--accent-indigo);
+      border-radius: 6px;
+      background: var(--accent-blue);
       color: white;
       font-family: inherit;
-      font-size: 1rem;
-      font-weight: 600;
+      font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 4px 14px rgba(24, 160, 251, 0.25);
+      transition: background 0.15s;
     }
     .login-card button:hover {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(24, 160, 251, 0.35);
+      background: var(--accent-blue-hover);
     }
     .error-msg {
       color: var(--danger);
-      font-size: 0.8125rem;
-      font-weight: 600;
-      margin-top: 1rem;
+      font-size: 12px;
+      font-weight: 500;
+      margin-top: 12px;
     }
   </style>
 </head>

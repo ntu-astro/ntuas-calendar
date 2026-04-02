@@ -358,6 +358,7 @@
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(100px, 1fr);
             flex: 1;
             min-height: 0;
         }
@@ -375,7 +376,6 @@
 
 
         .calendar-day {
-            min-height: 100px;
             padding: 6px 8px;
             border-bottom: 1px solid var(--border);
             border-right: 1px solid var(--border);
@@ -384,6 +384,7 @@
             cursor: default;
             transition: background 0.12s;
             overflow: hidden;
+            position: relative;
         }
 
         .calendar-day:nth-child(7n) {

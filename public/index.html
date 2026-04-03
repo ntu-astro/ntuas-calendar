@@ -115,12 +115,18 @@
         .nav-month-controls {
             display: flex;
             align-items: center;
+            gap: 6px;
+        }
+
+        .nav-month-arrows {
+            display: flex;
+            flex-direction: row;
             gap: 2px;
         }
 
-        .nav-month-controls button {
-            width: 28px;
-            height: 28px;
+        .nav-month-arrows button {
+            width: 24px;
+            height: 24px;
             border: none;
             background: transparent;
             border-radius: var(--radius-sm);
@@ -129,12 +135,12 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
             transition: background 0.15s;
             flex-shrink: 0;
+            padding: 0;
         }
 
-        .nav-month-controls button:hover {
+        .nav-month-arrows button:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
         }
@@ -323,7 +329,7 @@
             font-size: 11px;
             font-weight: 400;
             color: var(--text-primary);
-            border-radius: 50%;
+            border-radius: 4px;
             cursor: pointer;
             transition: background 0.12s;
             user-select: none;
@@ -341,12 +347,6 @@
             background: var(--accent-red);
             color: #fff;
             font-weight: 600;
-        }
-
-        .mini-cal-day.mini-selected:not(.today) {
-            background: var(--accent-blue-light);
-            color: var(--accent-blue);
-            font-weight: 500;
         }
 
         /* ─── CALENDAR AREA ─── */
@@ -468,7 +468,7 @@
             justify-content: center;
             width: 22px;
             height: 22px;
-            border-radius: 50%;
+            border-radius: 6px;
             background: var(--accent-red);
             color: #fff;
             font-weight: 600;
@@ -785,8 +785,12 @@
             <div class="mini-cal-header">
                 <span class="mini-cal-month-label" id="miniCalMonth">Loading...</span>
                 <div class="mini-cal-nav-group">
-                    <button class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">&#8249;</button>
-                    <button class="mini-cal-nav" id="miniCalNext" aria-label="Next month">&#8250;</button>
+                    <button class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 7L5 3L8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="mini-cal-nav" id="miniCalNext" aria-label="Next month">
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3L5 7L8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="mini-cal-grid" id="miniCalGrid"></div>
@@ -810,9 +814,15 @@
                 <div class="calendar-top-right">
                     <button id="todayBtn">Today</button>
                     <div class="nav-month-controls">
-                        <button id="prevMonth" aria-label="Previous Month">&#8249;</button>
                         <span id="monthLabel"></span>
-                        <button id="nextMonth" aria-label="Next Month">&#8250;</button>
+                        <div class="nav-month-arrows">
+                            <button id="prevMonth" aria-label="Previous Month">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 7L5 3L8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                            <button id="nextMonth" aria-label="Next Month">
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3L5 7L8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <a href="webcal://calendar.ntuas.com/subscribe" class="btn-subscribe">Subscribe</a>
                     <button class="btn-copy" id="copyBtn">Copy URL</button>
@@ -1541,11 +1551,7 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const el = document.createElement('div');
                 const isToday = year === today.getFullYear() && month === today.getMonth() && i === today.getDate();
-                const isVisibleMonth = miniMonthKey === visibleMonthKey;
                 el.className = 'mini-cal-day' + (isToday ? ' today' : '');
-                if (isVisibleMonth && !isToday) {
-                    el.classList.add('mini-selected');
-                }
                 el.textContent = i;
                 el.addEventListener('click', () => {
                     const targetDate = new Date(year, month, i);

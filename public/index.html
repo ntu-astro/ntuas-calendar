@@ -77,7 +77,7 @@
         .sidebar-toolbar {
             display: flex;
             align-items: center;
-            gap: 4px;
+            justify-content: space-between;
             margin-bottom: 12px;
         }
 
@@ -785,6 +785,191 @@
                 font-size: 18px;
             }
         }
+
+        /* ─── SEARCH OVERLAY ─── */
+        .search-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 18vh;
+            background: rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease;
+        }
+
+        .search-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .search-modal {
+            width: 540px;
+            max-width: calc(100vw - 32px);
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06);
+            overflow: hidden;
+            transform: translateY(-12px) scale(0.98);
+            transition: transform 0.2s ease;
+        }
+
+        .search-overlay.active .search-modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .search-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-input-row svg {
+            color: var(--text-tertiary);
+            flex-shrink: 0;
+        }
+
+        .search-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-size: 17px;
+            font-weight: 400;
+            color: var(--text-primary);
+            background: transparent;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .search-input-clear {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: var(--text-tertiary);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .search-input-clear.visible {
+            display: flex;
+        }
+
+        .search-results {
+            max-height: 340px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .search-results::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .search-results::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 3px;
+        }
+
+        .search-section-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 10px 16px 4px;
+        }
+
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .search-result-item:hover,
+        .search-result-item.focused {
+            background: var(--bg-hover);
+        }
+
+        .search-result-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: var(--accent-blue);
+            flex-shrink: 0;
+        }
+
+        .search-result-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-result-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-result-meta {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .search-empty {
+            padding: 24px 16px;
+            text-align: center;
+            color: var(--text-tertiary);
+            font-size: 13px;
+        }
+
+        .search-hint {
+            padding: 8px 16px 12px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-hint kbd {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-hover);
+            border: 1px solid var(--border-strong);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 10px;
+            min-width: 20px;
+            height: 18px;
+            padding: 0 4px;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 
@@ -881,6 +1066,24 @@
                 <div id="eventDetailContent"></div>
             </div>
         </aside>
+    </div>
+
+    <!-- Search Overlay -->
+    <div class="search-overlay" id="searchOverlay">
+        <div class="search-modal" id="searchModal">
+            <div class="search-input-row">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M10 10L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <input type="text" class="search-input" id="searchInput" placeholder="Search events" autocomplete="off" spellcheck="false">
+                <button class="search-input-clear" id="searchClear" aria-label="Clear search">&times;</button>
+            </div>
+            <div class="search-results" id="searchResults"></div>
+            <div class="search-hint">
+                <kbd>esc</kbd> to close
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1481,6 +1684,181 @@
             document.getElementById('backToUpcoming').addEventListener('click', () => {
                 clearEventDetails();
             });
+
+            // Search button handlers
+            document.getElementById('searchBtn').addEventListener('click', openSearch);
+            document.getElementById('searchBtnAlt').addEventListener('click', openSearch);
+
+            // Close search on backdrop click
+            document.getElementById('searchOverlay').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeSearch();
+            });
+
+            // Search input handlers
+            const searchInput = document.getElementById('searchInput');
+            const searchClear = document.getElementById('searchClear');
+
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim();
+                searchClear.classList.toggle('visible', query.length > 0);
+                renderSearchResults(query);
+            });
+
+            searchClear.addEventListener('click', () => {
+                searchInput.value = '';
+                searchClear.classList.remove('visible');
+                renderSearchResults('');
+                searchInput.focus();
+            });
+
+            // Keyboard shortcut: Cmd/Ctrl+K to open search
+            document.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    openSearch();
+                }
+                if (e.key === 'Escape') {
+                    closeSearch();
+                }
+            });
+
+            // Keyboard navigation in search results
+            searchInput.addEventListener('keydown', (e) => {
+                const items = document.querySelectorAll('.search-result-item');
+                if (items.length === 0) return;
+                const focused = document.querySelector('.search-result-item.focused');
+                let idx = Array.from(items).indexOf(focused);
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (focused) focused.classList.remove('focused');
+                    idx = idx < items.length - 1 ? idx + 1 : 0;
+                    items[idx].classList.add('focused');
+                    items[idx].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (focused) focused.classList.remove('focused');
+                    idx = idx > 0 ? idx - 1 : items.length - 1;
+                    items[idx].classList.add('focused');
+                    items[idx].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter' && focused) {
+                    e.preventDefault();
+                    focused.click();
+                }
+            });
+        }
+
+        // ─── SEARCH ───
+
+        function openSearch() {
+            const overlay = document.getElementById('searchOverlay');
+            const input = document.getElementById('searchInput');
+            overlay.classList.add('active');
+            input.value = '';
+            document.getElementById('searchClear').classList.remove('visible');
+            renderSearchResults('');
+            // Delay focus to allow transition
+            requestAnimationFrame(() => input.focus());
+        }
+
+        function closeSearch() {
+            const overlay = document.getElementById('searchOverlay');
+            overlay.classList.remove('active');
+        }
+
+        function renderSearchResults(query) {
+            const container = document.getElementById('searchResults');
+            container.textContent = '';
+
+            if (!query) {
+                // Show upcoming events as initial suggestions
+                const now = new Date();
+                const upcoming = eventsData
+                    .map(e => ({ ...e, parsedDate: parseDtstart(e.dtstart) }))
+                    .filter(e => e.parsedDate && e.parsedDate >= now)
+                    .sort((a, b) => a.parsedDate - b.parsedDate)
+                    .slice(0, 6);
+
+                if (upcoming.length > 0) {
+                    const label = document.createElement('div');
+                    label.className = 'search-section-label';
+                    label.textContent = 'Upcoming';
+                    container.appendChild(label);
+                    upcoming.forEach(evt => container.appendChild(createSearchResultItem(evt)));
+                }
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+            const matches = eventsData
+                .map(e => ({ ...e, parsedDate: parseDtstart(e.dtstart) }))
+                .filter(e => {
+                    if (!e.parsedDate) return false;
+                    const fields = [
+                        e.summary, e.description, e.location, e.categories
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    return fields.includes(lowerQuery);
+                })
+                .sort((a, b) => a.parsedDate - b.parsedDate);
+
+            if (matches.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'search-empty';
+                empty.textContent = `No events matching "${query}"`;
+                container.appendChild(empty);
+                return;
+            }
+
+            const label = document.createElement('div');
+            label.className = 'search-section-label';
+            label.textContent = `Search · ${matches.length} result${matches.length !== 1 ? 's' : ''}`;
+            container.appendChild(label);
+
+            matches.slice(0, 20).forEach(evt => {
+                container.appendChild(createSearchResultItem(evt));
+            });
+        }
+
+        function createSearchResultItem(evt) {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+
+            const dot = document.createElement('div');
+            dot.className = 'search-result-dot';
+
+            const info = document.createElement('div');
+            info.className = 'search-result-info';
+
+            const title = document.createElement('div');
+            title.className = 'search-result-title';
+            title.textContent = evt.summary || 'Untitled Event';
+
+            const meta = document.createElement('div');
+            meta.className = 'search-result-meta';
+            const isAllDay = evt.dtstart && !evt.dtstart.includes('T');
+            const dateStr = evt.parsedDate
+                ? evt.parsedDate.toLocaleDateString('en-SG', {
+                    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+                }) + (isAllDay ? '' : ' · ' + evt.parsedDate.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' }))
+                : '';
+            const parts = [dateStr];
+            if (evt.location) parts.push(evt.location);
+            meta.textContent = parts.join(' · ');
+
+            info.appendChild(title);
+            info.appendChild(meta);
+            item.appendChild(dot);
+            item.appendChild(info);
+
+            item.addEventListener('click', () => {
+                closeSearch();
+                if (evt.parsedDate) {
+                    scrollToDate(evt.parsedDate, 'smooth');
+                }
+                showEventDetails(evt);
+            });
+
+            return item;
         }
 
         // ─── MINI CALENDAR ───

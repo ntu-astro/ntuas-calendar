@@ -390,61 +390,33 @@
             color: var(--text-tertiary);
         }
 
-        .category-item.inactive .category-icon {
-            background: transparent;
-            box-shadow: inset 0 0 0 1.5px var(--cat-color);
-        }
-
         .category-icon {
             width: 14px;
             height: 14px;
-            border-radius: 3px;
+            border-radius: 4px;
             flex-shrink: 0;
-            background: var(--cat-color-light);
-            box-shadow: inset 0 0 0 1.5px var(--cat-color);
-            transition: background 0.12s, box-shadow 0.12s;
+            background: var(--cat-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.12s;
+        }
+
+        .category-icon svg {
+            width: 10px;
+            height: 10px;
+            color: #fff;
+            transition: opacity 0.12s;
+        }
+
+        .category-item.inactive .category-icon svg {
+            opacity: 0;
         }
 
         .category-label {
             font-size: 13px;
             font-weight: 500;
             color: var(--text-primary);
-        }
-
-        .category-eye {
-            width: 16px;
-            height: 16px;
-            margin-left: auto;
-            opacity: 0;
-            color: var(--text-tertiary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: opacity 0.12s;
-        }
-
-        .category-item:hover .category-eye,
-        .category-item.inactive .category-eye {
-            opacity: 1;
-        }
-
-        .category-eye svg {
-            width: 16px;
-            height: 16px;
-            display: none;
-        }
-
-        .category-eye .eye-open {
-            display: block;
-        }
-
-        .category-item.inactive .category-eye .eye-open {
-            display: none;
-        }
-
-        .category-item.inactive .category-eye .eye-slash {
-            display: block;
         }
 
         /* ─── LEFT SIDEBAR FOOTER ─── */
@@ -1313,39 +1285,18 @@
             return key === null || activeCategories.has(key);
         }
 
-        function buildEyeSvg(variant) {
+        function buildCheckSvg() {
             const SVG_NS = 'http://www.w3.org/2000/svg';
             const svg = document.createElementNS(SVG_NS, 'svg');
-            svg.setAttribute('class', variant === 'open' ? 'eye-open' : 'eye-slash');
             svg.setAttribute('viewBox', '0 0 24 24');
             svg.setAttribute('fill', 'none');
             svg.setAttribute('stroke', 'currentColor');
-            svg.setAttribute('stroke-width', '2');
+            svg.setAttribute('stroke-width', '3.5');
             svg.setAttribute('stroke-linecap', 'round');
             svg.setAttribute('stroke-linejoin', 'round');
-            const mkPath = (d) => {
-                const p = document.createElementNS(SVG_NS, 'path');
-                p.setAttribute('d', d);
-                return p;
-            };
-            if (variant === 'open') {
-                svg.appendChild(mkPath('M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z'));
-                const circle = document.createElementNS(SVG_NS, 'circle');
-                circle.setAttribute('cx', '12');
-                circle.setAttribute('cy', '12');
-                circle.setAttribute('r', '3');
-                svg.appendChild(circle);
-            } else {
-                svg.appendChild(mkPath('M9.88 9.88a3 3 0 1 0 4.24 4.24'));
-                svg.appendChild(mkPath('M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68'));
-                svg.appendChild(mkPath('M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61'));
-                const line = document.createElementNS(SVG_NS, 'line');
-                line.setAttribute('x1', '2');
-                line.setAttribute('y1', '2');
-                line.setAttribute('x2', '22');
-                line.setAttribute('y2', '22');
-                svg.appendChild(line);
-            }
+            const p = document.createElementNS(SVG_NS, 'path');
+            p.setAttribute('d', 'M5 12.5l5 5L20 7');
+            svg.appendChild(p);
             return svg;
         }
 
@@ -1361,14 +1312,11 @@
                 row.style.setProperty('--cat-color-light', cfg.colorLight);
                 const icon = document.createElement('span');
                 icon.className = 'category-icon';
+                icon.appendChild(buildCheckSvg());
                 const label = document.createElement('span');
                 label.className = 'category-label';
                 label.textContent = cfg.label;
-                const eye = document.createElement('span');
-                eye.className = 'category-eye';
-                eye.appendChild(buildEyeSvg('open'));
-                eye.appendChild(buildEyeSvg('slash'));
-                row.append(icon, label, eye);
+                row.append(icon, label);
                 row.addEventListener('click', () => {
                     if (activeCategories.has(key)) {
                         activeCategories.delete(key);

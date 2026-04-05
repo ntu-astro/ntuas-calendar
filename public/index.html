@@ -362,6 +362,86 @@
             font-weight: 600;
         }
 
+        /* ─── EVENT CATEGORIES ─── */
+        .event-categories {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            margin: 0 -8px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.12s;
+        }
+
+        .category-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .category-item.inactive .category-label {
+            color: var(--text-tertiary);
+            text-decoration: line-through;
+        }
+
+        .category-item.inactive .category-icon {
+            opacity: 0.35;
+        }
+
+        .category-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            transition: opacity 0.12s;
+        }
+
+        .category-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* ─── LEFT SIDEBAR FOOTER ─── */
+        .left-sidebar-spacer {
+            flex: 1;
+            min-height: 16px;
+        }
+
+        .left-sidebar-footer {
+            border-top: 1px solid var(--border-strong);
+            margin: 10px -16px 0;
+            padding: 10px 16px 0;
+        }
+
+        .help-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border-strong);
+            background: transparent;
+            border-radius: 50%;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .help-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
         /* ─── CALENDAR AREA ─── */
         .calendar-area {
             display: flex;
@@ -1009,6 +1089,19 @@
                 </div>
             </div>
             <div class="mini-cal-grid" id="miniCalGrid"></div>
+            <div class="event-categories" id="eventCategories"></div>
+            <div class="left-sidebar-spacer"></div>
+            <div class="left-sidebar-footer">
+                <button class="help-btn" id="helpBtn" aria-label="Help and resources" title="Help & Resources">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.25" fill="none" />
+                        <path
+                            d="M5.2 5.3c0-1 0.8-1.7 1.8-1.7s1.8 0.7 1.8 1.6c0 0.8-0.5 1.2-1.2 1.6-0.5 0.3-0.6 0.6-0.6 1.1"
+                            stroke="currentColor" stroke-width="1.25" stroke-linecap="round" fill="none" />
+                        <circle cx="7" cy="10.2" r="0.6" fill="currentColor" />
+                    </svg>
+                </button>
+            </div>
         </aside>
         <div class="calendar-area" id="calendarArea">
             <div class="calendar-header">
@@ -1132,6 +1225,86 @@
         let miniCalDate = new Date();
         let currentVisibleMonth = null; // tracked by IntersectionObserver
 
+        // ─── EVENT CATEGORIES (auto-derived from events) ───
+        const NOTION_PALETTE = [
+            { color: '#337ea9', colorLight: '#ddebf1' }, // blue
+            { color: '#e03e3e', colorLight: '#ffe2dd' }, // red
+            { color: '#d9730d', colorLight: '#faebdd' }, // orange
+            { color: '#448361', colorLight: '#ddedea' }, // green
+            { color: '#9065b0', colorLight: '#eae4f2' }, // purple
+            { color: '#c14c8a', colorLight: '#f4dfeb' }, // pink
+            { color: '#cb912f', colorLight: '#fbf3db' }, // yellow
+            { color: '#64473a', colorLight: '#e9e5e3' }  // brown
+        ];
+        const DEFAULT_CATEGORY = { color: '#787774', colorLight: '#ebeced' };
+        let CATEGORY_CONFIG = {};
+        const activeCategories = new Set();
+
+        function buildCategoriesFromEvents() {
+            const seen = new Map();
+            for (const e of eventsData) {
+                if (!e || !e.categories) continue;
+                const raw = String(e.categories).split(/[,;]/)[0].trim();
+                if (!raw) continue;
+                const key = raw.toLowerCase();
+                if (!seen.has(key)) seen.set(key, raw);
+            }
+            const sortedKeys = [...seen.keys()].sort();
+            CATEGORY_CONFIG = {};
+            activeCategories.clear();
+            sortedKeys.forEach((key, i) => {
+                const palette = NOTION_PALETTE[i % NOTION_PALETTE.length];
+                CATEGORY_CONFIG[key] = { label: seen.get(key), ...palette };
+                activeCategories.add(key);
+            });
+        }
+
+        function getCategoryKey(evt) {
+            if (!evt || !evt.categories) return null;
+            const first = String(evt.categories).toLowerCase().split(/[,;]/)[0].trim();
+            return first && CATEGORY_CONFIG[first] ? first : null;
+        }
+
+        function getCategoryStyle(evt) {
+            const key = getCategoryKey(evt);
+            return key ? CATEGORY_CONFIG[key] : DEFAULT_CATEGORY;
+        }
+
+        function isCategoryVisible(evt) {
+            const key = getCategoryKey(evt);
+            return key === null || activeCategories.has(key);
+        }
+
+        function renderCategoryFilter() {
+            const container = document.getElementById('eventCategories');
+            if (!container) return;
+            container.textContent = '';
+            for (const [key, cfg] of Object.entries(CATEGORY_CONFIG)) {
+                const row = document.createElement('div');
+                row.className = 'category-item';
+                row.dataset.category = key;
+                const icon = document.createElement('span');
+                icon.className = 'category-icon';
+                icon.style.background = cfg.color;
+                const label = document.createElement('span');
+                label.className = 'category-label';
+                label.textContent = cfg.label;
+                row.append(icon, label);
+                row.addEventListener('click', () => {
+                    if (activeCategories.has(key)) {
+                        activeCategories.delete(key);
+                        row.classList.add('inactive');
+                    } else {
+                        activeCategories.add(key);
+                        row.classList.remove('inactive');
+                    }
+                    refreshAllDayChips();
+                    renderUpcomingEvents();
+                });
+                container.appendChild(row);
+            }
+        }
+
         const STATE = {
             renderedStart: null,   // Sunday Date of first rendered week
             renderedEnd: null,     // Sunday Date of last rendered week
@@ -1213,6 +1386,9 @@
                 // silently fail
             }
 
+            buildCategoriesFromEvents();
+            renderCategoryFilter();
+
             renderDayNamesRow();
 
             // Start the view on the week containing the 1st of the current month
@@ -1273,6 +1449,57 @@
             }
         }
 
+        // ─── DAY EVENT CHIPS ───
+
+        function getVisibleEventsForDate(dateStr) {
+            if (!dateStr) return [];
+            return eventsData.filter(e => {
+                if (!e.dtstart) return false;
+                if (dtToDateStr(e.dtstart) !== dateStr) return false;
+                return isCategoryVisible(e);
+            });
+        }
+
+        function applyDayEventChips(dayEl, allDayEvents) {
+            // Strip existing chips/more from a re-render
+            dayEl.querySelectorAll('.event-chip, .event-chip-more').forEach(el => el.remove());
+            const visible = allDayEvents.filter(isCategoryVisible);
+            if (visible.length === 0) {
+                dayEl.classList.remove('has-event');
+                return;
+            }
+            dayEl.classList.add('has-event');
+            visible.slice(0, 2).forEach(evt => {
+                const chip = document.createElement('div');
+                chip.className = 'event-chip';
+                const style = getCategoryStyle(evt);
+                chip.style.background = style.colorLight;
+                chip.style.color = style.color;
+                chip.textContent = evt.summary || 'Event';
+                chip.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                    dayEl.classList.add('selected');
+                    showEventDetails(evt);
+                });
+                dayEl.appendChild(chip);
+            });
+            if (visible.length > 2) {
+                const more = document.createElement('div');
+                more.className = 'event-chip-more';
+                more.textContent = `+${visible.length - 2} more`;
+                dayEl.appendChild(more);
+            }
+        }
+
+        function refreshAllDayChips() {
+            document.querySelectorAll('.calendar-day[data-date]').forEach(dayEl => {
+                const dateStr = dayEl.dataset.date;
+                const dayEvents = eventsData.filter(e => e.dtstart && dtToDateStr(e.dtstart) === dateStr);
+                applyDayEventChips(dayEl, dayEvents);
+            });
+        }
+
         // ─── WEEK ROW RENDERING ───
 
         function renderWeekRow(sundayDate) {
@@ -1319,6 +1546,7 @@
                 const dayNum = cellDate.getDate();
 
                 const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                dayEl.dataset.date = currentDayStr;
                 const isToday = currentDayStr === todayStr;
 
                 const numEl = document.createElement('span');
@@ -1343,38 +1571,17 @@
                     return dtToDateStr(e.dtstart) === currentDayStr;
                 });
 
-                if (dayEvents.length > 0) {
-                    dayEl.classList.add('has-event');
-                    dayEvents.slice(0, 2).forEach(evt => {
-                        const chip = document.createElement('div');
-                        chip.className = 'event-chip';
-                        chip.textContent = evt.summary || 'Event';
-                        chip.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                            dayEl.classList.add('selected');
-                            showEventDetails(evt);
-                        });
-                        dayEl.appendChild(chip);
-                    });
-                    if (dayEvents.length > 2) {
-                        const more = document.createElement('div');
-                        more.className = 'event-chip-more';
-                        more.textContent = `+${dayEvents.length - 2} more`;
-                        dayEl.appendChild(more);
-                    }
-                    dayEl.addEventListener('click', () => {
-                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                        dayEl.classList.add('selected');
-                        showEventDetails(dayEvents[0]);
-                    });
-                } else {
-                    dayEl.addEventListener('click', () => {
+                applyDayEventChips(dayEl, dayEvents);
+                dayEl.addEventListener('click', () => {
+                    document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+                    dayEl.classList.add('selected');
+                    const visible = getVisibleEventsForDate(dayEl.dataset.date);
+                    if (visible.length > 0) {
+                        showEventDetails(visible[0]);
+                    } else {
                         clearEventDetails();
-                        document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-                        dayEl.classList.add('selected');
-                    });
-                }
+                    }
+                });
 
                 row.appendChild(dayEl);
             }
@@ -1656,6 +1863,14 @@
         // ─── BUTTON HANDLERS ───
 
         function attachButtonHandlers() {
+            const helpBtn = document.getElementById('helpBtn');
+            if (helpBtn) {
+                helpBtn.addEventListener('click', () => {
+                    // placeholder — swap for real help overlay/URL later
+                    console.log('Help & Resources clicked');
+                });
+            }
+
             document.getElementById('todayBtn').addEventListener('click', () => {
                 clearEventDetails();
                 const now = new Date();
@@ -1979,6 +2194,7 @@
                 return { ...e, parsedDate: parsed, isAllDay: e.dtstart && !e.dtstart.includes('T') };
             })
                 .filter(e => e.parsedDate)
+                .filter(isCategoryVisible)
                 .filter(e => {
                     const eventDay = new Date(e.parsedDate);
                     eventDay.setHours(0, 0, 0, 0);

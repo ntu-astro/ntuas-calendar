@@ -372,6 +372,12 @@
             position: relative;
             scroll-snap-type: y proximity;
             scroll-padding-top: var(--header-height);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .calendar-area::-webkit-scrollbar {
+            display: none;
         }
 
         /* ─── DAY NAMES ROW (inside sticky header) ─── */
@@ -433,7 +439,7 @@
         }
 
         .calendar-day.other-month-day .day-number {
-            color: var(--text-tertiary);
+            color: rgba(17, 17, 17, 0.32);
         }
 
         .calendar-day.weekend-day {
@@ -463,7 +469,7 @@
         .day-number {
             font-size: 13px;
             font-weight: 400;
-            color: var(--text-secondary);
+            color: var(--text-primary);
             line-height: 1;
             margin-bottom: 4px;
             align-self: flex-end;
@@ -644,6 +650,12 @@
             border-left: 1px solid var(--border);
             overflow-y: auto;
             padding: 20px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            display: none;
         }
 
         .sidebar h3 {
@@ -978,13 +990,17 @@
             }
 
             renderDayNamesRow();
-            renderWeeks(new Date(), 'both');
 
-            // Scroll to today's week instantly
-            const todayKey = getWeekKey(new Date());
-            const todayWeekEl = STATE.weekElements.get(todayKey);
-            if (todayWeekEl) {
-                scrollWeekIntoView(todayWeekEl);
+            // Start the view on the week containing the 1st of the current month
+            const today = new Date();
+            const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            renderWeeks(firstOfMonth, 'both');
+
+            // Scroll so the week containing the 1st of the month is the first visible row
+            const firstWeekKey = getWeekKey(firstOfMonth);
+            const firstWeekEl = STATE.weekElements.get(firstWeekKey);
+            if (firstWeekEl) {
+                scrollWeekIntoView(firstWeekEl);
             }
 
             // Setup month header observer immediately for sync
@@ -1063,8 +1079,14 @@
                     dayEl.classList.add('weekend-day');
                 }
 
-                // Mark days that don't belong to the owning month
-                if (cellMonthKey !== ownerMonthKey) {
+                // Store cell's month for dynamic ghosting on scroll
+                dayEl.dataset.dateMonth = cellMonthKey;
+
+                // Ghost cells that don't belong to the currently visible month.
+                // Fall back to the week's owning month until the scroll observer
+                // sets currentVisibleMonth on first paint.
+                const refMonthKey = currentVisibleMonth || ownerMonthKey;
+                if (cellMonthKey !== refMonthKey) {
                     dayEl.classList.add('other-month-day');
                 }
 
@@ -1317,6 +1339,11 @@
                         const md = monthKeyToDate(monthKey);
                         document.getElementById('monthLabel').textContent = formatMonthYear(md);
 
+                        // Re-ghost every rendered day cell against the newly visible month
+                        document.querySelectorAll('.calendar-day[data-date-month]').forEach(cell => {
+                            cell.classList.toggle('other-month-day', cell.dataset.dateMonth !== monthKey);
+                        });
+
                         // Sync mini-cal
                         miniCalDate = new Date(md);
                         renderMiniCalendar();
@@ -1407,7 +1434,9 @@
         function attachButtonHandlers() {
             document.getElementById('todayBtn').addEventListener('click', () => {
                 clearEventDetails();
-                scrollToDate(new Date(), 'smooth');
+                const now = new Date();
+                const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                scrollToDate(firstOfMonth, 'smooth');
             });
 
             document.getElementById('prevMonth').addEventListener('click', () => {

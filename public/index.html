@@ -1533,9 +1533,9 @@
                 grid.appendChild(el);
             }
 
-            // Next month leading days
+            // Next month leading days (always fill 6 rows = 42 cells)
             const totalCells = firstDay + daysInMonth;
-            const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+            const remaining = 42 - totalCells;
             for (let i = 1; i <= remaining; i++) {
                 const el = document.createElement('div');
                 el.className = 'mini-cal-day other-month';

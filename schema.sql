@@ -63,6 +63,20 @@ CREATE TABLE event_alarms (
     FOREIGN KEY (event_uid) REFERENCES events(uid) ON DELETE CASCADE
 );
 
+-- 5. VTIMEZONE
+CREATE TABLE timezone_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    calendar_id TEXT NOT NULL,
+    tzid TEXT NOT NULL,            
+    type TEXT NOT NULL,            
+    dtstart TEXT NOT NULL,         
+    tzoffsetfrom TEXT NOT NULL,    
+    tzoffsetto TEXT NOT NULL,      
+    rrule TEXT,            
+    tzname TEXT,
+    FOREIGN KEY (calendar_id) REFERENCES calendars(id) ON DELETE CASCADE
+);
+
 -- 6. Admin Sessions
 CREATE TABLE admin_sessions (
     token TEXT PRIMARY KEY,
@@ -77,20 +91,6 @@ CREATE TABLE login_attempts (
     ip TEXT NOT NULL,
     attempted_at TEXT NOT NULL,
     success INTEGER NOT NULL DEFAULT 0
-);
-
--- 5. VTIMEZONE
-CREATE TABLE timezone_rules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    calendar_id TEXT NOT NULL,
-    tzid TEXT NOT NULL,            
-    type TEXT NOT NULL,            
-    dtstart TEXT NOT NULL,         
-    tzoffsetfrom TEXT NOT NULL,    
-    tzoffsetto TEXT NOT NULL,      
-    rrule TEXT,            
-    tzname TEXT,
-    FOREIGN KEY (calendar_id) REFERENCES calendars(id) ON DELETE CASCADE
 );
 
 -- 8. Indexes

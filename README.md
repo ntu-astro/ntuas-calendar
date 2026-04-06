@@ -33,13 +33,16 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    npx wrangler login
    ```
 
-3. **Create the D1 Database:**
+3. **Configure your Cloudflare identifiers in `wrangler.jsonc`:**
+   - Set `account_id` to your 32-character Cloudflare account ID (find it on the [Cloudflare dashboard](https://dash.cloudflare.com/) under *Workers & Pages*).
+
+4. **Create the D1 Database:**
    ```bash
    npx wrangler d1 create calendar_db
    ```
    *Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section.*
 
-4. **Initialize Database Schema:**
+5. **Initialize Database Schema:**
    Apply the provided schema (`schema.sql`) to your local and production databases:
    ```bash
    # For local development
@@ -58,13 +61,13 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    npx wrangler d1 execute calendar_db --remote --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
    ```
 
-5. **Set the Admin Password:**
+6. **Set the Admin Password:**
    You must set the `ADMIN_PASSWORD` securely via Wrangler secrets. This is required for both local development and production.
    ```bash
    npx wrangler secret put ADMIN_PASSWORD
    ```
 
-6. **Start the local server:**
+7. **Start the local server:**
    ```bash
    npm run dev
    ```

@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"account_id": "975178f94ce2b9f286656ea810bce986", // Insert your 32-character ID here
+	"account_id": "<YOUR_ACCOUNT_ID>", // Insert your 32-character Cloudflare account ID here
 	"name": "my-calendar-api",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-03-03",
@@ -31,7 +31,7 @@
 		{
 			"binding": "DB",
 			"database_name": "calendar_db", // Replace with your actual D1 name
-			"database_id": "8dc17ef6-f1fa-4871-8bd6-e70fb31ca8e3" // Replace with your actual ID from dashboard
+			"database_id": "<YOUR_DATABASE_ID>" // Replace with your actual ID from dashboard
 		}
 	]
 	/**

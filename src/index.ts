@@ -82,7 +82,9 @@ const toIcsDateOnly = (dateStr: string | null): string | null => {
 };
 
 const sanitizeIcsValue = (value: string): string => {
-	return value.replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, (ch) => '\\' + ch);
+	return value
+		.replace(/\r\n|\r|\n/g, '\\n')
+		.replace(/[\\;,]/g, (ch) => '\\' + ch);
 };
 
 const sanitizeIcsOrganizerName = (name: string): string => {
@@ -110,6 +112,7 @@ export default {
 				headers: {
 					'Content-Type': 'application/json',
 					'Cache-Control': 'public, max-age=60, s-maxage=300',
+					'Access-Control-Allow-Origin': '*',
 				},
 			});
 		}
@@ -526,11 +529,12 @@ export default {
 					'Content-Disposition': 'inline; filename="ntuas.ics"',
 					'Cache-Control': 'public, max-age=3600',
 					'Access-Control-Allow-Origin': '*',
+					...SECURITY_HEADERS,
 				},
 			});
 		}
 
-		return new Response('404 - Endpoint not found.', { status: 404 });
+		return new Response('404 - Endpoint not found.', { status: 404, headers: { ...SECURITY_HEADERS } });
 	},
 } satisfies ExportedHandler<Env>;
 

@@ -5,8 +5,8 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
 ## Features
 
 - **Public Calendar Page:** A beautiful, responsive web calendar served at the root (`/`) for users to view upcoming events.
-- **ICS Subscription Endpoint:** Serves a standard RFC 5545 `.ics` feed directly from the D1 database.
-- **Admin Dashboard:** A responsive web interface at `/admin` for creating, editing, and deleting calendar events, protected by a secure cookie-based session login.
+- **ICS Subscription Endpoint:** Serves a standard RFC 5545 `.ics` feed directly from the D1 database, with correct UTF-8 line folding (75-octet limit) for full compatibility with CJK characters.
+- **Admin Dashboard:** A responsive web interface at `/admin` for creating, editing, and deleting calendar events, protected by a secure cookie-based session login with CSRF protection and login rate limiting.
 - **Event Support:** Comprehensive support for both Timed and All-Day events.
 - **JSON Endpoint:** Fetch all active events via a JSON endpoint (`/api/events`).
 - **Cloudflare D1:** Uses a serverless SQLite database for low-latency, globally distributed database queries.
@@ -40,22 +40,42 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    *Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section.*
 
 4. **Initialize Database Schema:**
-   Apply the provided schema (`schema.sql`) to your local and production databases:
+   Apply the provided schema (`schema.sql`) to your local and/or production databases. The schema includes all tables and indexes.
+
+   > ⚠️ `schema.sql` starts with `DROP TABLE IF EXISTS` statements — **do not run it against a production database that already has data**. To add indexes only to an existing database, run the `CREATE INDEX` statements individually with `--remote`.
+
    ```bash
-   # For local development
+   # For local development (safe — creates a fresh local SQLite)
    npx wrangler d1 execute calendar_db --local --file=./schema.sql
 
-   # For production
+   # For production (only for initial setup, not for existing databases with data)
    npx wrangler d1 execute calendar_db --remote --file=./schema.sql
    ```
-   
-   *Wait! Before you can use the dashboard to add events, you must insert an initial calendar record using the ID the worker expects (`main-cal-001`):*
+
+   Then seed the required calendar record and optional sample events:
    ```bash
    # For local development
-   npx wrangler d1 execute calendar_db --local --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
+   npx wrangler d1 execute calendar_db --local --file=./seed.sql
 
-   # For production
-   npx wrangler d1 execute calendar_db --remote --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
+   # For production (seed.sql inserts one calendar row + a sample event)
+   npx wrangler d1 execute calendar_db --remote --file=./seed.sql
+   ```
+
+   *The seed inserts a calendar record with ID `main-cal-001`, which the worker expects. If you prefer to insert it manually:*
+   ```bash
+   npx wrangler d1 execute calendar_db --local --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
+   ```
+
+   **Alternative: clone production data to local** (instead of using seed.sql):
+   ```bash
+   # Export remote database (self-contained — includes CREATE TABLE statements)
+   npx wrangler d1 export calendar_db --remote --output=./remote_backup.sql
+
+   # Wipe local state (required — the export has its own CREATE TABLE statements)
+   rm -rf .wrangler/state/v3/d1
+
+   # Import directly — do NOT run schema.sql first
+   npx wrangler d1 execute calendar_db --local --file=./remote_backup.sql
    ```
 
 5. **Set the Admin Password:**
@@ -69,6 +89,23 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    npm run dev
    ```
    The application will be available at `http://localhost:8787` (or whatever port Wrangler assigns).
+
+## Testing
+
+Tests run inside a real Cloudflare Workers runtime (via `@cloudflare/vitest-pool-workers`) with an in-memory D1 database — no remote database or secrets required.
+
+```bash
+npm test
+```
+
+The test suite covers:
+- `GET /api/events` — response format, headers (Content-Type, Cache-Control, CORS)
+- `POST /admin/login` — correct/wrong password, rate limiting (429 after 5 failures), secure cookie attributes
+- `GET /admin` — unauthenticated redirect, authenticated dashboard, security headers
+- `POST /admin` — CSRF validation, input validation (add & update), event CRUD operations
+- `POST /admin/logout` — CSRF-protected POST logout, session cookie cleared
+- `GET /subscribe` — RFC 5545 compliance, line folding (75-octet limit), VALARM, all-day `VALUE=DATE`, CORS/cache/security headers
+- Unknown routes — 404 with security headers
 
 ## Deployment
 
@@ -113,3 +150,27 @@ The root page (`/`) serves as a public-facing, responsive web calendar for your 
 
 ### 4. Important Notes
 - **ICS Sync Latency**: Please note that third-party calendar applications check for updates at their own internal intervals. While Apple Calendar allows you to set the refresh frequency (e.g., every 5 minutes), **Google Calendar may take up to 12-24 hours to reflect new updates or changes**. This latency is controlled by Google and cannot be forced from the application.
+
+## Commands Reference
+
+<!-- AUTO-GENERATED from package.json scripts -->
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start local development server at `http://localhost:8787` |
+| `npm run start` | Alias for `npm run dev` |
+| `npm run deploy` | Build and deploy the Worker to Cloudflare |
+| `npm test` | Run the test suite (Vitest with Cloudflare Workers runtime) |
+| `npm run cf-typegen` | Generate TypeScript types from `wrangler.jsonc` bindings |
+<!-- END AUTO-GENERATED -->
+
+## Security
+
+- **Authentication**: Session-based with HttpOnly, Secure, SameSite=Strict cookies. Sessions expire after 24 hours.
+- **CSRF Protection**: Per-session CSRF tokens validated on all admin POST requests. Token stored in `<meta name="csrf-token">`.
+- **Rate Limiting**: Login endpoint blocks IPs after 5 failed attempts within 10 minutes (HTTP 429).
+- **Password Comparison**: Uses `crypto.subtle.timingSafeEqual` to prevent timing attacks.
+- **Logout**: POST-based with CSRF token — not vulnerable to logout CSRF via `<img>` tags.
+- **SQL Injection**: All queries use D1 parameterized bindings — no string concatenation in SQL.
+- **Input Validation**: All admin form fields validated on both add and update actions.
+- **Content Security Policy**: Enforced on all HTML responses.
+- **Secrets**: `ADMIN_PASSWORD` must be set via `wrangler secret put` — never hardcode it.

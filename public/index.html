@@ -255,6 +255,22 @@
             background: var(--bg-hover);
         }
 
+        /* ─── ERROR BANNER ─── */
+        .error-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            background: #cf222e;
+            color: #fff;
+            font-size: 13px;
+            padding: 8px 16px;
+            text-align: center;
+        }
+        .error-banner.visible { display: block; }
+
         /* ─── MAIN CONTENT ─── */
         .main-content {
             display: grid;
@@ -1136,6 +1152,7 @@
 </head>
 
 <body>
+    <div class="error-banner" id="errorBanner">Could not load calendar events. Please check your connection and refresh.</div>
     <div class="main-content">
         <aside class="left-sidebar" id="leftSidebar">
             <div class="sidebar-toolbar">
@@ -1486,9 +1503,11 @@
                 const res = await fetch('/api/events');
                 if (res.ok) {
                     eventsData = await res.json();
+                } else {
+                    document.getElementById('errorBanner').classList.add('visible');
                 }
             } catch (e) {
-                // silently fail
+                document.getElementById('errorBanner').classList.add('visible');
             }
 
             buildCategoriesFromEvents();

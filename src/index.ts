@@ -1130,6 +1130,15 @@ const ADMIN_HTML = (csrfToken: string) => `
             <input type="hidden" name="dtend" id="edit-iso-end">
           </div>
         </div>
+
+        <div id="editTzRow">
+          <label>Timezone Override</label>
+          <select id="editTzSelect">
+            <option value="+08:00" selected>Singapore Time (SGT / +08:00)</option>
+            <option value="+00:00">Coordinated Universal Time (UTC)</option>
+          </select>
+        </div>
+
         <div>
           <label>Status</label>
           <select name="status" id="edit-status">
@@ -1259,8 +1268,8 @@ const ADMIN_HTML = (csrfToken: string) => `
                       data-geo="\${escapeHtml(e.geo)}"
                       data-description="\${escapeHtml(e.description)}"
                     >Edit</button>
-                    <form onsubmit="handleDelete(event, '\${escapeHtml(e.uid)}')">
-                      <input type="password" id="del-pass-\${escapeHtml(e.uid)}" placeholder="Password" required class="del-pass">
+                    <form class="form-delete" data-uid="\${escapeHtml(e.uid)}">
+                      <input type="password" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
                     </form>
                   </div>\`;
@@ -1289,6 +1298,12 @@ const ADMIN_HTML = (csrfToken: string) => `
                   btn.dataset.geo,
                   btn.dataset.description
                 );
+            });
+        });
+
+        container.querySelectorAll('.form-delete').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                handleDelete(e, form.dataset.uid);
             });
         });
     }
@@ -1323,6 +1338,7 @@ const ADMIN_HTML = (csrfToken: string) => `
         document.getElementById('editEndLabel').textContent = isAllDay ? 'End Date' : 'End Date & Time';
         startInput.type = isAllDay ? 'date' : 'datetime-local';
         endInput.type = isAllDay ? 'date' : 'datetime-local';
+        document.getElementById('editTzRow').style.display = isAllDay ? 'none' : '';
         startInput.value = '';
         endInput.value = '';
     });
@@ -1358,13 +1374,14 @@ const ADMIN_HTML = (csrfToken: string) => `
 
     async function handleDelete(e, uid) {
         e.preventDefault();
-        const btn = e.target.querySelector('button');
+        const form = e.target;
+        const btn = form.querySelector('button');
         btn.disabled = true;
         const formData = new FormData();
         formData.append("action", "delete");
         formData.append("_csrf", CSRF_TOKEN);
         formData.append("uid", uid);
-        formData.append("password", document.getElementById(\`del-pass-\${uid}\`).value);
+        formData.append("password", form.querySelector('.del-pass').value);
 
         try {
             const res = await fetch('/admin', { method: 'POST', body: formData });
@@ -1386,6 +1403,7 @@ const ADMIN_HTML = (csrfToken: string) => `
         // Reset more details toggle
         document.getElementById('edit-more-details').style.display = 'none';
         document.getElementById('editMoreBtn').innerText = 'Show More Details';
+        document.getElementById('editTzSelect').value = '+08:00';
 
         // Detect all-day: dtstart has no 'T'
         const isAllDay = dtstart && !dtstart.includes('T');
@@ -1397,6 +1415,7 @@ const ADMIN_HTML = (csrfToken: string) => `
         editEndInput.type = isAllDay ? 'date' : 'datetime-local';
         document.getElementById('editStartLabel').textContent = isAllDay ? 'Start Date*' : 'Start Date & Time*';
         document.getElementById('editEndLabel').textContent = isAllDay ? 'End Date' : 'End Date & Time';
+        document.getElementById('editTzRow').style.display = isAllDay ? 'none' : '';
 
         if (isAllDay) {
             // Convert YYYYMMDD to YYYY-MM-DD for date input
@@ -1412,7 +1431,7 @@ const ADMIN_HTML = (csrfToken: string) => `
                 if (!icsDate) return '';
                 const iso = icsDate.replace(/(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z/, '$1-$2-$3T$4:$5:$6Z');
                 const d = new Date(iso);
-                const offset = d.getTimezoneOffset();
+                const offset = -480;
                 const local = new Date(d.getTime() - offset * 60000);
                 return local.toISOString().slice(0, 16);
             }
@@ -1453,8 +1472,9 @@ const ADMIN_HTML = (csrfToken: string) => `
             document.getElementById('edit-iso-start').value = start || '';
             document.getElementById('edit-iso-end').value = end || '';
         } else {
-            document.getElementById('edit-iso-start').value = start ? start + '+08:00' : '';
-            document.getElementById('edit-iso-end').value = end ? end + '+08:00' : '';
+            const tz = document.getElementById('editTzSelect').value;
+            document.getElementById('edit-iso-start').value = start ? start + tz : '';
+            document.getElementById('edit-iso-end').value = end ? end + tz : '';
         }
 
         try {

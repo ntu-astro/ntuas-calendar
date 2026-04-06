@@ -100,6 +100,7 @@ async function req(url: string, init?: RequestInit): Promise<Response> {
 }
 
 async function login(): Promise<{ cookie: string; csrfToken: string }> {
+	await runSQL('DELETE FROM login_attempts;');
 	const body = new FormData();
 	body.append('password', ADMIN_PASS);
 	const res = await req(`${BASE}/admin/login`, { method: 'POST', body });

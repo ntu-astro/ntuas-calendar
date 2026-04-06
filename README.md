@@ -13,7 +13,7 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
 
 ## Database Schema
 
-![Database ERD](https://ntuas.com/ntuas-calendar/docs/database_erd.avif)
+![Database ERD](./docs/assets/erd-diagram.png)
 
 ## Prerequisites
 

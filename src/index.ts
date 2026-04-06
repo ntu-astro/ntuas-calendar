@@ -49,10 +49,19 @@ function getCookie(request: Request, name: string): string | null {
 }
 
 const fold = (line: string): string => {
-	const parts = [];
-	while (line.length > 75) {
-		parts.push(line.slice(0, 75));
-		line = ' ' + line.slice(75);
+	const encoder = new TextEncoder();
+	const parts: string[] = [];
+	const maxOctets = 75;
+
+	while (encoder.encode(line).byteLength > maxOctets) {
+		// Find the largest character boundary that fits within maxOctets
+		let end = line.length;
+		while (end > 0 && encoder.encode(line.slice(0, end)).byteLength > maxOctets) {
+			end--;
+		}
+		if (end === 0) end = 1; // at least one character per line
+		parts.push(line.slice(0, end));
+		line = ' ' + line.slice(end);
 	}
 	parts.push(line);
 	return parts.join('\r\n');
@@ -97,7 +106,12 @@ export default {
 			const { results: events } = await env.DB.prepare(
 				'SELECT uid, summary, dtstart, dtend, status, location, geo, description, categories, url, organizer FROM events ORDER BY dtstart DESC',
 			).all();
-			return Response.json(events);
+			return new Response(JSON.stringify(events), {
+				headers: {
+					'Content-Type': 'application/json',
+					'Cache-Control': 'public, max-age=60, s-maxage=300',
+				},
+			});
 		}
 
 		// ==========================================
@@ -123,7 +137,17 @@ export default {
 			const formData = await request.formData();
 			const password = formData.get('password') as string;
 
-			if (password !== env.ADMIN_PASSWORD) {
+			const encoder = new TextEncoder();
+			const passwordBytes = encoder.encode(password);
+			const adminPasswordBytes = encoder.encode(env.ADMIN_PASSWORD);
+			const maxLen = Math.max(passwordBytes.byteLength, adminPasswordBytes.byteLength);
+			const a = new Uint8Array(maxLen);
+			const b = new Uint8Array(maxLen);
+			a.set(passwordBytes);
+			b.set(adminPasswordBytes);
+			const passwordMatch = passwordBytes.byteLength === adminPasswordBytes.byteLength && crypto.subtle.timingSafeEqual(a, b);
+
+			if (!passwordMatch) {
 				await env.DB.prepare('INSERT INTO login_attempts (ip, attempted_at, success) VALUES (?, ?, 0)')
 					.bind(clientIp, new Date().toISOString())
 					.run();
@@ -323,6 +347,14 @@ export default {
 						const summary = formData.get('summary') as string;
 						const isAllDay = formData.get('is_all_day') === '1';
 
+						// Input validation (matching add action)
+						if (!summary || summary.trim().length === 0) {
+							return Response.json({ success: false, error: 'Event title is required.' }, { status: 400 });
+						}
+						if (summary.length > 500) {
+							return Response.json({ success: false, error: 'Event title must be 500 characters or less.' }, { status: 400 });
+						}
+
 						let dtstart: string | null;
 						let dtend: string | null;
 
@@ -339,10 +371,27 @@ export default {
 							dtend = toIcsDate(formData.get('dtend') as string);
 						}
 
+						if (!dtstart) {
+							return Response.json({ success: false, error: 'Start date is required.' }, { status: 400 });
+						}
+
 						const status = (formData.get('status') as string) || 'CONFIRMED';
+						const validStatuses = ['CONFIRMED', 'TENTATIVE', 'CANCELLED'];
+						if (!validStatuses.includes(status)) {
+							return Response.json({ success: false, error: 'Invalid status value.' }, { status: 400 });
+						}
+
 						const location = (formData.get('location') as string) || null;
-						const geo = (formData.get('geo') as string) || null;
+						if (location && location.length > 500) {
+							return Response.json({ success: false, error: 'Location must be 500 characters or less.' }, { status: 400 });
+						}
+
 						const description = (formData.get('description') as string) || null;
+						if (description && description.length > 5000) {
+							return Response.json({ success: false, error: 'Description must be 5000 characters or less.' }, { status: 400 });
+						}
+
+						const geo = (formData.get('geo') as string) || null;
 						const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string) || 'OPAQUE';
 						const nowIcs = toIcsDate(new Date().toISOString());
 
@@ -358,7 +407,16 @@ export default {
 					} else if (action === 'delete') {
 						const uid = formData.get('uid') as string;
 						const password = formData.get('password') as string;
-						if (password !== env.ADMIN_PASSWORD) {
+						const delEncoder = new TextEncoder();
+						const delPwBytes = delEncoder.encode(password);
+						const delAdminBytes = delEncoder.encode(env.ADMIN_PASSWORD);
+						const delMaxLen = Math.max(delPwBytes.byteLength, delAdminBytes.byteLength);
+						const delA = new Uint8Array(delMaxLen);
+						const delB = new Uint8Array(delMaxLen);
+						delA.set(delPwBytes);
+						delB.set(delAdminBytes);
+						const delMatch = delPwBytes.byteLength === delAdminBytes.byteLength && crypto.subtle.timingSafeEqual(delA, delB);
+						if (!delMatch) {
 							return Response.json({ success: false, error: 'Incorrect password for deletion.' }, { status: 401 });
 						}
 						await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();

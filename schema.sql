@@ -89,6 +89,14 @@ CREATE TABLE timezone_rules (
     tzoffsetfrom TEXT NOT NULL,    
     tzoffsetto TEXT NOT NULL,      
     rrule TEXT,            
-    tzname TEXT,                   
+    tzname TEXT,
     FOREIGN KEY (calendar_id) REFERENCES calendars(id) ON DELETE CASCADE
 );
+
+-- 8. Indexes
+CREATE INDEX idx_events_calendar_dtstart ON events(calendar_id, dtstart);
+CREATE INDEX idx_events_dtstart ON events(dtstart DESC);
+CREATE INDEX idx_event_alarms_event_uid ON event_alarms(event_uid);
+CREATE INDEX idx_event_attachments_event_uid ON event_attachments(event_uid);
+CREATE INDEX idx_login_attempts_ip_time ON login_attempts(ip, attempted_at);
+CREATE INDEX idx_admin_sessions_expires ON admin_sessions(expires_at);

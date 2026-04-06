@@ -445,9 +445,27 @@ export default {
 
 			const { results: events } = await env.DB.prepare('SELECT * FROM events WHERE calendar_id = ? ORDER BY dtstart ASC')
 				.bind(cal.id)
-				.all();
-			const { results: alarms } = await env.DB.prepare('SELECT * FROM event_alarms').all();
-			const { results: attachments } = await env.DB.prepare('SELECT * FROM event_attachments').all();
+				.all<any>();
+			const { results: alarms } = await env.DB.prepare(
+				'SELECT ea.* FROM event_alarms ea INNER JOIN events e ON ea.event_uid = e.uid WHERE e.calendar_id = ?'
+			).bind(cal.id).all<any>();
+			const { results: attachments } = await env.DB.prepare(
+				'SELECT att.* FROM event_attachments att INNER JOIN events e ON att.event_uid = e.uid WHERE e.calendar_id = ?'
+			).bind(cal.id).all<any>();
+
+			// Group alarms and attachments by event_uid for O(1) lookup
+			const alarmsByEvent = new Map<string, typeof alarms>();
+			for (const alarm of alarms) {
+				const list = alarmsByEvent.get(alarm.event_uid) ?? [];
+				list.push(alarm);
+				alarmsByEvent.set(alarm.event_uid, list);
+			}
+			const attachmentsByEvent = new Map<string, typeof attachments>();
+			for (const att of attachments) {
+				const list = attachmentsByEvent.get(att.event_uid) ?? [];
+				list.push(att);
+				attachmentsByEvent.set(att.event_uid, list);
+			}
 
 			let icsLines = [
 				'BEGIN:VCALENDAR',
@@ -458,7 +476,7 @@ export default {
 			if (cal.x_wr_calname) icsLines.push(`X-WR-CALNAME:${cal.x_wr_calname}`);
 			if (cal.x_wr_timezone) icsLines.push(`X-WR-TIMEZONE:${cal.x_wr_timezone}`);
 
-			for (const event of events as any[]) {
+			for (const event of events) {
 				const isAllDay = event.dtstart && !event.dtstart.includes('T');
 				icsLines.push('BEGIN:VEVENT', `UID:${event.uid}`, `DTSTAMP:${event.dtstamp}`);
 
@@ -486,13 +504,11 @@ export default {
 				icsLines.push(`STATUS:${event.status || 'CONFIRMED'}`);
 				icsLines.push(`TRANSP:${event.transp || 'OPAQUE'}`);
 
-				const eventAttachments = attachments.filter((a: any) => a.event_uid === event.uid);
-				for (const att of eventAttachments) {
+				for (const att of attachmentsByEvent.get(event.uid) ?? []) {
 					icsLines.push(`ATTACH${att.fmttype ? `;FMTTYPE=${att.fmttype}` : ''}:${att.uri}`);
 				}
 
-				const eventAlarms = alarms.filter((a: any) => a.event_uid === event.uid);
-				for (const alarm of eventAlarms) {
+				for (const alarm of alarmsByEvent.get(event.uid) ?? []) {
 					icsLines.push('BEGIN:VALARM', `ACTION:${alarm.action}`, `TRIGGER:${alarm.trigger}`);
 					if (alarm.description) icsLines.push(`DESCRIPTION:${alarm.description}`);
 					if (alarm.summary) icsLines.push(`SUMMARY:${alarm.summary}`);

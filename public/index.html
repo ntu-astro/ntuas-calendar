@@ -480,6 +480,50 @@
             transform: translateY(0);
         }
 
+        .help-btn-wrap.menu-open .help-tooltip {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .help-menu {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 0;
+            min-width: 220px;
+            background: #2f2f2f;
+            border-radius: 8px;
+            padding: 4px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.06);
+            opacity: 0;
+            transform: translateY(4px);
+            pointer-events: none;
+            transition: opacity 0.15s, transform 0.15s;
+            z-index: 10000;
+        }
+
+        .help-menu.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .help-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .help-menu-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
         /* ─── CALENDAR AREA ─── */
         .calendar-area {
             display: flex;
@@ -1139,6 +1183,11 @@
                         </svg>
                     </button>
                     <div class="help-tooltip">Help and resources</div>
+                    <div class="help-menu" id="helpMenu">
+                        <a class="help-menu-item" href="https://www.instagram.com/ntu_astro/" target="_blank" rel="noopener noreferrer">
+                            Follow @ntu_astro on Instagram
+                        </a>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -1920,10 +1969,25 @@
 
         function attachButtonHandlers() {
             const helpBtn = document.getElementById('helpBtn');
-            if (helpBtn) {
-                helpBtn.addEventListener('click', () => {
-                    // placeholder — swap for real help overlay/URL later
-                    console.log('Help & Resources clicked');
+            const helpMenu = document.getElementById('helpMenu');
+            const helpWrap = helpBtn?.closest('.help-btn-wrap');
+            if (helpBtn && helpMenu && helpWrap) {
+                helpBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = helpMenu.classList.toggle('active');
+                    helpWrap.classList.toggle('menu-open', isOpen);
+                });
+                document.addEventListener('click', (e) => {
+                    if (!helpWrap.contains(e.target)) {
+                        helpMenu.classList.remove('active');
+                        helpWrap.classList.remove('menu-open');
+                    }
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        helpMenu.classList.remove('active');
+                        helpWrap.classList.remove('menu-open');
+                    }
                 });
             }
 

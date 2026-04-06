@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS login_attempts;
+DROP TABLE IF EXISTS admin_sessions;
 DROP TABLE IF EXISTS event_alarms;
 DROP TABLE IF EXISTS event_attachments;
 DROP TABLE IF EXISTS timezone_rules;
@@ -59,6 +61,22 @@ CREATE TABLE event_alarms (
     duration TEXT,                  
     repeat INTEGER,                 
     FOREIGN KEY (event_uid) REFERENCES events(uid) ON DELETE CASCADE
+);
+
+-- 6. Admin Sessions
+CREATE TABLE admin_sessions (
+    token TEXT PRIMARY KEY,
+    csrf_token TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+-- 7. Login Rate Limiting
+CREATE TABLE login_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip TEXT NOT NULL,
+    attempted_at TEXT NOT NULL,
+    success INTEGER NOT NULL DEFAULT 0
 );
 
 -- 5. VTIMEZONE

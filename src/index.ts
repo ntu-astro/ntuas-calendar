@@ -3,12 +3,42 @@ export interface Env {
 	ADMIN_PASSWORD: string;
 }
 
-async function generateSessionToken(password: string): Promise<string> {
-	const encoder = new TextEncoder();
-	const data = encoder.encode('ntuas-admin-session:' + password);
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+function generateRandomToken(): string {
+	return crypto.randomUUID() + '-' + crypto.randomUUID();
+}
+
+const SESSION_MAX_AGE_SECONDS = 86400;
+
+async function createSession(db: D1Database): Promise<{ token: string; csrfToken: string }> {
+	const token = generateRandomToken();
+	const csrfToken = generateRandomToken();
+	const now = new Date();
+	const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000);
+	await db.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+		.bind(token, csrfToken, now.toISOString(), expiresAt.toISOString())
+		.run();
+	return { token, csrfToken };
+}
+
+async function validateSession(db: D1Database, token: string | null): Promise<{ valid: boolean; csrfToken: string | null }> {
+	if (!token) return { valid: false, csrfToken: null };
+	const session = await db.prepare('SELECT * FROM admin_sessions WHERE token = ?').bind(token).first<any>();
+	if (!session) return { valid: false, csrfToken: null };
+	if (new Date(session.expires_at) < new Date()) {
+		await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
+		return { valid: false, csrfToken: null };
+	}
+	return { valid: true, csrfToken: session.csrf_token };
+}
+
+async function deleteSession(db: D1Database, token: string | null): Promise<void> {
+	if (token) {
+		await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
+	}
+}
+
+async function cleanExpiredSessions(db: D1Database): Promise<void> {
+	await db.prepare('DELETE FROM admin_sessions WHERE expires_at < ?').bind(new Date().toISOString()).run();
 }
 
 function getCookie(request: Request, name: string): string | null {
@@ -42,6 +72,20 @@ const toIcsDateOnly = (dateStr: string | null): string | null => {
 	return `${y}${m}${day}`;
 };
 
+const sanitizeIcsValue = (value: string): string => {
+	return value.replace(/[\r\n]+/g, ' ').replace(/[\\;]/g, (ch) => '\\' + ch);
+};
+
+const sanitizeIcsOrganizerName = (name: string): string => {
+	return name.replace(/[\r\n;:]/g, '');
+};
+
+const SECURITY_HEADERS: Record<string, string> = {
+	'X-Content-Type-Options': 'nosniff',
+	'X-Frame-Options': 'DENY',
+	'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
+};
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
@@ -50,7 +94,9 @@ export default {
 		// 1. API: FETCH EVENTS (JSON)
 		// ==========================================
 		if (url.pathname === '/api/events' && request.method === 'GET') {
-			const { results: events } = await env.DB.prepare('SELECT * FROM events ORDER BY dtstart DESC').all();
+			const { results: events } = await env.DB.prepare(
+				'SELECT uid, summary, dtstart, dtend, status, location, geo, description, categories, url, organizer FROM events ORDER BY dtstart DESC',
+			).all();
 			return Response.json(events);
 		}
 
@@ -58,24 +104,51 @@ export default {
 		// 2. ADMIN LOGIN / LOGOUT
 		// ==========================================
 		if (url.pathname === '/admin/login' && request.method === 'POST') {
+			const clientIp = request.headers.get('cf-connecting-ip') || 'unknown';
+
+			// Rate limiting: check failed attempts
+			const recentFailures = await env.DB.prepare(
+				'SELECT COUNT(*) as cnt FROM login_attempts WHERE ip = ? AND attempted_at > ? AND success = 0',
+			)
+				.bind(clientIp, new Date(Date.now() - 10 * 60 * 1000).toISOString())
+				.first<any>();
+
+			if (recentFailures && recentFailures.cnt >= 5) {
+				return new Response(JSON.stringify({ error: 'Too many failed attempts. Try again later.' }), {
+					status: 429,
+					headers: { 'Content-Type': 'application/json', 'Retry-After': '600' },
+				});
+			}
+
 			const formData = await request.formData();
 			const password = formData.get('password') as string;
 
 			if (password !== env.ADMIN_PASSWORD) {
-				return new Response(LOGIN_HTML(true), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+				await env.DB.prepare('INSERT INTO login_attempts (ip, attempted_at, success) VALUES (?, ?, 0)')
+					.bind(clientIp, new Date().toISOString())
+					.run();
+				return new Response(LOGIN_HTML(true), { headers: { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS } });
 			}
 
-			const token = await generateSessionToken(env.ADMIN_PASSWORD);
+			// Clean up old attempts and expired sessions
+			await env.DB.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
+				.bind(new Date(Date.now() - 10 * 60 * 1000).toISOString())
+				.run();
+			await cleanExpiredSessions(env.DB);
+
+			const { token } = await createSession(env.DB);
 			return new Response(null, {
 				status: 302,
 				headers: {
 					Location: '/admin',
-					'Set-Cookie': `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=86400`,
+					'Set-Cookie': `admin_session=${token}; HttpOnly; Secure; SameSite=Strict; Path=/admin; Max-Age=${SESSION_MAX_AGE_SECONDS}`,
 				},
 			});
 		}
 
 		if (url.pathname === '/admin/logout' && request.method === 'GET') {
+			const sessionCookie = getCookie(request, 'admin_session');
+			await deleteSession(env.DB, sessionCookie);
 			return new Response(null, {
 				status: 302,
 				headers: {
@@ -90,19 +163,26 @@ export default {
 		// ==========================================
 		if (url.pathname === '/admin') {
 			const sessionCookie = getCookie(request, 'admin_session');
-			const validToken = await generateSessionToken(env.ADMIN_PASSWORD);
+			const { valid: isValidSession, csrfToken } = await validateSession(env.DB, sessionCookie);
 
-			if (sessionCookie !== validToken) {
-				return new Response(LOGIN_HTML(false), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+			if (!isValidSession) {
+				return new Response(LOGIN_HTML(false), { headers: { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS } });
 			}
 
 			if (request.method === 'GET') {
-				return new Response(ADMIN_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+				return new Response(ADMIN_HTML(csrfToken!), { headers: { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS } });
 			}
 
 			if (request.method === 'POST') {
 				try {
 					const formData = await request.formData();
+
+					// CSRF validation
+					const submittedCsrf = formData.get('_csrf') as string;
+					if (!submittedCsrf || submittedCsrf !== csrfToken) {
+						return Response.json({ success: false, error: 'Invalid request. Please refresh and try again.' }, { status: 403 });
+					}
+
 					const action = formData.get('action');
 
 					if (action === 'add') {
@@ -128,6 +208,17 @@ export default {
 						}
 
 						const summary = formData.get('summary') as string;
+
+						// Input validation
+						if (!summary || summary.trim().length === 0) {
+							return Response.json({ success: false, error: 'Event title is required.' }, { status: 400 });
+						}
+						if (summary.length > 500) {
+							return Response.json({ success: false, error: 'Event title must be 500 characters or less.' }, { status: 400 });
+						}
+						if (!dtstart) {
+							return Response.json({ success: false, error: 'Start date is required.' }, { status: 400 });
+						}
 						const description = formData.get('description') as string;
 						const location = formData.get('location') as string;
 						const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string) || 'OPAQUE';
@@ -137,13 +228,32 @@ export default {
 						const status = (formData.get('status') as string) || 'CONFIRMED';
 						const eventUrl = formData.get('url') as string;
 
-						// --- NEW ORGANIZER FORMATTING LOGIC ---
+						// Length validation
+						if (description && description.length > 5000) {
+							return Response.json({ success: false, error: 'Description must be 5000 characters or less.' }, { status: 400 });
+						}
+						if (location && location.length > 500) {
+							return Response.json({ success: false, error: 'Location must be 500 characters or less.' }, { status: 400 });
+						}
+
+						// Status whitelist validation
+						const validStatuses = ['CONFIRMED', 'TENTATIVE', 'CANCELLED'];
+						if (!validStatuses.includes(status)) {
+							return Response.json({ success: false, error: 'Invalid status value.' }, { status: 400 });
+						}
+
+						// --- ORGANIZER FORMATTING (sanitized) ---
 						const orgName = formData.get('organizer_name') as string;
 						const orgEmail = formData.get('organizer_email') as string;
+
+						// Email format validation
+						if (orgEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(orgEmail)) {
+							return Response.json({ success: false, error: 'Invalid organizer email format.' }, { status: 400 });
+						}
 						let organizer = null;
 
 						if (orgName && orgEmail) {
-							organizer = `;CN=${orgName}:mailto:${orgEmail}`;
+							organizer = `;CN=${sanitizeIcsOrganizerName(orgName)}:mailto:${orgEmail}`;
 						} else if (orgEmail) {
 							organizer = `mailto:${orgEmail}`;
 						}
@@ -255,8 +365,9 @@ export default {
 					}
 
 					return Response.json({ success: true, message: 'Action completed successfully' });
-				} catch (e: any) {
-					return Response.json({ success: false, error: e.message || String(e) }, { status: 500 });
+				} catch (e: unknown) {
+					console.error('Admin action failed:', e);
+					return Response.json({ success: false, error: 'An error occurred. Please try again.' }, { status: 500 });
 				}
 			}
 		}
@@ -297,11 +408,11 @@ export default {
 				if (event.duration) icsLines.push(`DURATION:${event.duration}`);
 				if (event.created) icsLines.push(`CREATED:${event.created}`);
 				if (event.last_modified) icsLines.push(`LAST-MODIFIED:${event.last_modified}`);
-				if (event.summary) icsLines.push(`SUMMARY:${event.summary}`);
-				if (event.description) icsLines.push(`DESCRIPTION:${event.description.replace(/\n/g, '\\n')}`);
-				if (event.location) icsLines.push(`LOCATION:${event.location}`);
+				if (event.summary) icsLines.push(`SUMMARY:${sanitizeIcsValue(event.summary)}`);
+				if (event.description) icsLines.push(`DESCRIPTION:${sanitizeIcsValue(event.description)}`);
+				if (event.location) icsLines.push(`LOCATION:${sanitizeIcsValue(event.location)}`);
 				if (event.geo) icsLines.push(`GEO:${event.geo}`);
-				if (event.categories) icsLines.push(`CATEGORIES:${event.categories}`);
+				if (event.categories) icsLines.push(`CATEGORIES:${sanitizeIcsValue(event.categories)}`);
 				if (event.url) icsLines.push(`URL:${event.url}`);
 
 				// --- ORGANIZER INJECTION ---
@@ -346,7 +457,7 @@ export default {
 // ==========================================
 // THE HTML DASHBOARD
 // ==========================================
-const ADMIN_HTML = `
+const ADMIN_HTML = (csrfToken: string) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -750,6 +861,7 @@ const ADMIN_HTML = `
     <h2>Create Event</h2>
     <form class="add-form" id="eventForm">
       <input type="hidden" name="action" value="add">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
       
       <div class="row">
         <div><label>Event Title*</label><input type="text" name="summary" required></div>
@@ -904,6 +1016,7 @@ const ADMIN_HTML = `
       <h2>Edit Event</h2>
       <form id="editForm" onsubmit="handleEdit(event)">
         <input type="hidden" name="action" value="update">
+        <input type="hidden" name="_csrf" value="${csrfToken}">
         <input type="hidden" name="uid" id="edit-uid">
         <div>
           <label>Event Title (Summary)*</label>
@@ -962,6 +1075,7 @@ const ADMIN_HTML = `
   </div>
 
   <script>
+    const CSRF_TOKEN = '${csrfToken}';
     const COORDS = { NORTH_SPINE: "1.3473;103.6803", SOUTH_SPINE: "1.3428;103.6824", THE_HIVE: "1.3436;103.6823", THE_ARC: "1.3475777755020193;103.6816184760447", WKWSCI: "1.3438;103.6818", EMB: "1.3446803707174764;103.67849230240778" };
     const venues = [
         { name: "LT1 (Von Lee Yong Miang) - North Spine", geo: COORDS.NORTH_SPINE },
@@ -1004,6 +1118,11 @@ const ADMIN_HTML = `
         });
     }
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+    }
+
     let allEvents = [];
     let currentPage = 1;
     const EVENTS_PER_PAGE = 10;
@@ -1039,21 +1158,21 @@ const ADMIN_HTML = `
             return \`
                   <div class="event-card">
                     <div class="event-info">
-                      <strong>\${e.summary}</strong> <span class="event-status">\${e.status}</span>\${isAllDay ? '<span class="all-day-badge">ALL DAY</span>' : ''}<br>
-                      <small style="color: var(--text-tertiary); display: block; margin-top: 2px; font-size: 12px;">\${isAllDay ? '' : 'Starts: '}\${displayDate}</small>
+                      <strong>\${escapeHtml(e.summary)}</strong> <span class="event-status">\${escapeHtml(e.status)}</span>\${isAllDay ? '<span class="all-day-badge">ALL DAY</span>' : ''}<br>
+                      <small style="color: var(--text-tertiary); display: block; margin-top: 2px; font-size: 12px;">\${isAllDay ? '' : 'Starts: '}\${escapeHtml(displayDate)}</small>
                     </div>
-                    <button class="btn-edit" 
-                      data-uid="\${e.uid}" 
-                      data-summary="\${(e.summary || '').replace(/"/g, '&quot;')}" 
-                      data-dtstart="\${e.dtstart}" 
-                      data-dtend="\${e.dtend || ''}" 
-                      data-status="\${e.status}"
-                      data-location="\${(e.location || '').replace(/"/g, '&quot;')}"
-                      data-geo="\${e.geo || ''}"
-                      data-description="\${(e.description || '').replace(/"/g, '&quot;')}"
+                    <button class="btn-edit"
+                      data-uid="\${escapeHtml(e.uid)}"
+                      data-summary="\${escapeHtml(e.summary)}"
+                      data-dtstart="\${escapeHtml(e.dtstart)}"
+                      data-dtend="\${escapeHtml(e.dtend)}"
+                      data-status="\${escapeHtml(e.status)}"
+                      data-location="\${escapeHtml(e.location)}"
+                      data-geo="\${escapeHtml(e.geo)}"
+                      data-description="\${escapeHtml(e.description)}"
                     >Edit</button>
-                    <form onsubmit="handleDelete(event, '\${e.uid}')">
-                      <input type="password" id="del-pass-\${e.uid}" placeholder="Password" required class="del-pass">
+                    <form onsubmit="handleDelete(event, '\${escapeHtml(e.uid)}')">
+                      <input type="password" id="del-pass-\${escapeHtml(e.uid)}" placeholder="Password" required class="del-pass">
                       <button type="submit" class="btn-delete">Delete</button>
                     </form>
                   </div>\`;
@@ -1155,6 +1274,7 @@ const ADMIN_HTML = `
         btn.disabled = true;
         const formData = new FormData();
         formData.append("action", "delete");
+        formData.append("_csrf", CSRF_TOKEN);
         formData.append("uid", uid);
         formData.append("password", document.getElementById(\`del-pass-\${uid}\`).value);
 

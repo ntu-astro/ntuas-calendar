@@ -30,7 +30,8 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "calendar_db"
+			"database_name": "calendar_db",
+			"database_id": "8dc17ef6-f1fa-4871-8bd6-e70fb31ca8e3"
 		}
 	]
 	/**

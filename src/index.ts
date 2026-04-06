@@ -82,7 +82,7 @@ const toIcsDateOnly = (dateStr: string | null): string | null => {
 };
 
 const sanitizeIcsValue = (value: string): string => {
-	return value.replace(/[\r\n]+/g, ' ').replace(/[\\;]/g, (ch) => '\\' + ch);
+	return value.replace(/[\r\n]+/g, ' ').replace(/[\\;,]/g, (ch) => '\\' + ch);
 };
 
 const sanitizeIcsOrganizerName = (name: string): string => {
@@ -170,8 +170,14 @@ export default {
 			});
 		}
 
-		if (url.pathname === '/admin/logout' && request.method === 'GET') {
+		if (url.pathname === '/admin/logout' && request.method === 'POST') {
 			const sessionCookie = getCookie(request, 'admin_session');
+			const { csrfToken: logoutCsrf } = await validateSession(env.DB, sessionCookie);
+			const logoutForm = await request.formData();
+			const submittedLogoutCsrf = logoutForm.get('_csrf') as string;
+			if (!submittedLogoutCsrf || submittedLogoutCsrf !== logoutCsrf) {
+				return new Response('Forbidden', { status: 403 });
+			}
 			await deleteSession(env.DB, sessionCookie);
 			return new Response(null, {
 				status: 302,
@@ -521,6 +527,7 @@ const ADMIN_HTML = (csrfToken: string) => `
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="${csrfToken}">
   <title>NTUAS Calendar Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -911,7 +918,10 @@ const ADMIN_HTML = (csrfToken: string) => `
 <body>
   <div class="admin-header">
     <h1>Admin Dashboard</h1>
-    <a href="/admin/logout" class="logout-link">Logout</a>
+    <form method="POST" action="/admin/logout" style="display:inline">
+      <input type="hidden" name="_csrf" value="${csrfToken}">
+      <button type="submit" class="logout-link">Logout</button>
+    </form>
   </div>
   <div class="admin-body">
   
@@ -1133,7 +1143,7 @@ const ADMIN_HTML = (csrfToken: string) => `
   </div>
 
   <script>
-    const CSRF_TOKEN = '${csrfToken}';
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const COORDS = { NORTH_SPINE: "1.3473;103.6803", SOUTH_SPINE: "1.3428;103.6824", THE_HIVE: "1.3436;103.6823", THE_ARC: "1.3475777755020193;103.6816184760447", WKWSCI: "1.3438;103.6818", EMB: "1.3446803707174764;103.67849230240778" };
     const venues = [
         { name: "LT1 (Von Lee Yong Miang) - North Spine", geo: COORDS.NORTH_SPINE },

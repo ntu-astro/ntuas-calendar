@@ -572,6 +572,165 @@ describe('GET /subscribe', () => {
 	});
 });
 
+// ─── GET /health ─────────────────────────────────────────────────────────────
+
+describe('GET /health', () => {
+	it('returns 200 with ok status', async () => {
+		const res = await req(`${BASE}/health`);
+		expect(res.status).toBe(200);
+		const data = await res.json() as { status: string };
+		expect(data.status).toBe('ok');
+	});
+});
+
+// ─── HSTS header ─────────────────────────────────────────────────────────────
+
+describe('HSTS header', () => {
+	it('is present on admin responses', async () => {
+		const res = await req(`${BASE}/admin`);
+		const hsts = res.headers.get('Strict-Transport-Security');
+		expect(hsts).toBeTruthy();
+		expect(hsts).toContain('max-age=');
+		expect(hsts).toContain('includeSubDomains');
+	});
+
+	it('is present on subscribe responses', async () => {
+		const res = await req(`${BASE}/subscribe`);
+		expect(res.headers.get('Strict-Transport-Security')).toBeTruthy();
+	});
+});
+
+// ─── Session expiry ───────────────────────────────────────────────────────────
+
+describe('Session expiry', () => {
+	beforeEach(async () => {
+		await runSQL('DELETE FROM admin_sessions;');
+	});
+
+	it('rejects an expired session and shows login form', async () => {
+		// Insert an already-expired session directly into the DB
+		const expiredToken = 'expired-token-12345';
+		const past = new Date(Date.now() - 1000).toISOString();
+		await env.DB
+			.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+			.bind(expiredToken, 'some-csrf', past, past)
+			.run();
+
+		const res = await req(`${BASE}/admin`, {
+			headers: { Cookie: `admin_session=${expiredToken}` },
+		});
+		expect(res.status).toBe(200);
+		const html = await res.text();
+		// Should show login form, not admin dashboard
+		expect(html).toContain('<form');
+		expect(html).not.toContain('Admin Dashboard');
+	});
+
+	it('cleans up expired session from DB after rejection', async () => {
+		const expiredToken = 'expired-cleanup-token';
+		const past = new Date(Date.now() - 1000).toISOString();
+		await env.DB
+			.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+			.bind(expiredToken, 'some-csrf', past, past)
+			.run();
+
+		await req(`${BASE}/admin`, {
+			headers: { Cookie: `admin_session=${expiredToken}` },
+		});
+
+		const row = await env.DB
+			.prepare('SELECT token FROM admin_sessions WHERE token = ?')
+			.bind(expiredToken)
+			.first();
+		expect(row).toBeNull();
+	});
+});
+
+// ─── ICS output safety ───────────────────────────────────────────────────────
+
+describe('ICS output safety', () => {
+	beforeEach(async () => {
+		await runSQL('DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events;');
+	});
+
+	it('escapes special chars in SUMMARY per RFC 5545', async () => {
+		await env.DB
+			.prepare(
+				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('xss-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Event; with, special\\chars', 'CONFIRMED')",
+			)
+			.run();
+
+		const res = await req(`${BASE}/subscribe`);
+		const body = await res.text();
+		// Semicolons, commas, and backslashes must be escaped in ICS values
+		expect(body).toContain('SUMMARY:Event\\; with\\, special\\\\chars');
+	});
+
+	it('escapes newlines in DESCRIPTION per RFC 5545', async () => {
+		await env.DB
+			.prepare(
+				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, description, status) VALUES ('nl-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'NL Event', 'Line1\nLine2', 'CONFIRMED')",
+			)
+			.run();
+
+		const res = await req(`${BASE}/subscribe`);
+		const body = await res.text();
+		expect(body).toContain('DESCRIPTION:Line1\\nLine2');
+	});
+});
+
+// ─── Input validation edge cases ─────────────────────────────────────────────
+
+describe('POST /admin — input validation edge cases', () => {
+	beforeEach(async () => {
+		await runSQL('DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events; DELETE FROM admin_sessions;');
+	});
+
+	it('returns 400 when description exceeds 5000 chars', async () => {
+		const { cookie, csrfToken } = await login();
+		const res = await adminPost(cookie, csrfToken, {
+			action: 'add',
+			summary: 'Test',
+			dtstart: '2026-03-01T10:00',
+			description: 'x'.repeat(5001),
+		});
+		expect(res.status).toBe(400);
+		const data = await res.json() as { error: string };
+		expect(data.error).toContain('5000');
+	});
+
+	it('returns 400 when location exceeds 500 chars', async () => {
+		const { cookie, csrfToken } = await login();
+		const res = await adminPost(cookie, csrfToken, {
+			action: 'add',
+			summary: 'Test',
+			dtstart: '2026-03-01T10:00',
+			location: 'x'.repeat(501),
+		});
+		expect(res.status).toBe(400);
+		const data = await res.json() as { error: string };
+		expect(data.error).toContain('500');
+	});
+
+	it('returns 400 when update location exceeds 500 chars', async () => {
+		const uid = 'evt-validation@ntuas.edu';
+		await env.DB
+			.prepare(
+				`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('${uid}', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Original', 'CONFIRMED')`,
+			)
+			.run();
+		const { cookie, csrfToken } = await login();
+		const res = await adminPost(cookie, csrfToken, {
+			action: 'update',
+			uid,
+			summary: 'Updated',
+			dtstart: '2026-03-01T10:00',
+			location: 'x'.repeat(501),
+		});
+		expect(res.status).toBe(400);
+	});
+});
+
 // ─── 404 ─────────────────────────────────────────────────────────────────────
 
 describe('Unknown routes', () => {

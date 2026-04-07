@@ -111,7 +111,7 @@ export default {
 			return new Response(JSON.stringify(events), {
 				headers: {
 					'Content-Type': 'application/json',
-					'Cache-Control': 'public, max-age=60, s-maxage=300',
+					'Cache-Control': 'public, max-age=10, s-maxage=30',
 					'Access-Control-Allow-Origin': '*',
 				},
 			});
@@ -430,6 +430,14 @@ export default {
 						}
 						await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
 					}
+
+					const cache = caches.default;
+					const origin = new URL(request.url).origin;
+					await Promise.all([
+						cache.delete(new Request(`${origin}/api/events`)),
+						cache.delete(new Request(`${origin}/subscribe`)),
+						cache.delete(new Request(`${origin}/calendar.ics`)),
+					]);
 
 					return Response.json({ success: true, message: 'Action completed successfully' });
 				} catch (e: unknown) {
@@ -1226,7 +1234,7 @@ const ADMIN_HTML = (csrfToken: string) => `
 
     async function loadEvents() {
         try {
-            const res = await fetch('/api/events');
+            const res = await fetch('/api/events?_t=' + Date.now());
             allEvents = await res.json();
             currentPage = 1;
             renderEventsPage();

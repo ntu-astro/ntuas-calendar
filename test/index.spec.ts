@@ -156,7 +156,7 @@ describe('GET /api/events', () => {
 	it('has correct Content-Type, Cache-Control, and CORS headers', async () => {
 		const res = await req(`${BASE}/api/events`);
 		expect(res.headers.get('Content-Type')).toContain('application/json');
-		expect(res.headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=300');
+		expect(res.headers.get('Cache-Control')).toBe('public, max-age=10, s-maxage=30');
 		expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
 	});
 

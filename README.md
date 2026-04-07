@@ -79,7 +79,17 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    ```
 
 5. **Set the Admin Password:**
-   You must set the `ADMIN_PASSWORD` securely via Wrangler secrets. This is required for both local development and production.
+   You must set the `ADMIN_PASSWORD` securely.
+
+   **For Local Development:**
+   Create a `.dev.vars` file in the root of your project:
+   ```bash
+   echo "ADMIN_PASSWORD=your_local_password" > .dev.vars
+   ```
+   *(Ensure `.dev.vars` is added to your `.gitignore`)*
+
+   **For Production:**
+   Set the secret securely via Wrangler:
    ```bash
    npx wrangler secret put ADMIN_PASSWORD
    ```

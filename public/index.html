@@ -1924,6 +1924,9 @@
                 }
             }, { passive: true });
 
+            // Expose for explicit calls
+            STATE.updateVisibleMonth = updateVisibleMonth;
+
             // Initial sync
             updateVisibleMonth();
         }
@@ -1973,6 +1976,10 @@
                         if (STATE.observers.sentinel) {
                             STATE.observers.sentinel.observe(document.getElementById('sentinelTop'));
                             STATE.observers.sentinel.observe(document.getElementById('sentinelBottom'));
+                        }
+                        
+                        if (STATE.updateVisibleMonth) {
+                            STATE.updateVisibleMonth();
                         }
                     });
                 });

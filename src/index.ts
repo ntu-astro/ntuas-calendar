@@ -16,6 +16,89 @@ const MAX_LOCATION_LENGTH = 500;
 const VALID_STATUSES = ['CONFIRMED', 'TENTATIVE', 'CANCELLED'] as const;
 
 // ==========================================
+// TYPE DEFINITIONS
+// ==========================================
+
+/**
+ * Maps admin_sessions table row
+ */
+interface AdminSession {
+	token: string;
+	csrf_token: string;
+	created_at: string;
+	expires_at: string;
+}
+
+/**
+ * Maps calendars table row
+ */
+interface Calendar {
+	id: string;
+	prodid: string;
+	version: string;
+	calscale?: string;
+	x_wr_calname?: string;
+	x_wr_timezone?: string;
+}
+
+/**
+ * Maps events table row
+ */
+interface Event {
+	uid: string;
+	calendar_id: string;
+	dtstamp: string;
+	dtstart: string;
+	dtend?: string | null;
+	duration?: string | null;
+	transp?: string;
+	summary?: string | null;
+	description?: string | null;
+	location?: string | null;
+	geo?: string | null;
+	categories?: string | null;
+	class?: string;
+	status?: string;
+	url?: string | null;
+	organizer?: string | null;
+	sequence?: number;
+	created?: string | null;
+	last_modified?: string | null;
+}
+
+/**
+ * Maps event_alarms table row
+ */
+interface EventAlarm {
+	id: number;
+	event_uid: string;
+	action?: string;
+	trigger: string;
+	description?: string | null;
+	summary?: string | null;
+	duration?: string | null;
+	repeat?: number | null;
+}
+
+/**
+ * Maps event_attachments table row
+ */
+interface EventAttachment {
+	id: number;
+	event_uid: string;
+	uri?: string | null;
+	binary_data?: Blob | null;
+	fmttype?: string | null;
+}
+
+/**
+ * Query result type for login attempt count aggregation
+ */
+interface LoginAttemptCount {
+	cnt: number;
+}
+
+// ==========================================
 // HELPERS
 // ==========================================
 function generateRandomToken(): string {
@@ -47,7 +130,7 @@ async function createSession(db: D1Database): Promise<{ token: string; csrfToken
 
 async function validateSession(db: D1Database, token: string | null): Promise<{ valid: boolean; csrfToken: string | null }> {
 	if (!token) return { valid: false, csrfToken: null };
-	const session = await db.prepare('SELECT * FROM admin_sessions WHERE token = ?').bind(token).first<any>();
+	const session = await db.prepare('SELECT * FROM admin_sessions WHERE token = ?').bind(token).first<AdminSession>();
 	if (!session) return { valid: false, csrfToken: null };
 	if (new Date(session.expires_at) < new Date()) {
 		await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
@@ -90,11 +173,36 @@ const fold = (line: string): string => {
 	return parts.join('\r\n');
 };
 
+/**
+ * RFC 5545 line folding: breaks long lines at 75 octets with CRLF+SPACE continuation.
+ * This is critical for compatibility with calendar clients that strictly enforce the spec.
+ *
+ * Important: Octet count is bytes, not characters. Multi-byte UTF-8 characters (like CJK)
+ * must be split correctly to avoid breaking in the middle of a character sequence.
+ *
+ * @param line The unfolded ICS property line
+ * @returns Line folded to 75-octet chunks, joined with \r\n (CRLF)
+ * @example
+ * fold('SUMMARY:日本語のイベント') → properly wraps at octet boundaries, not character boundaries
+ * fold('DESCRIPTION:Line 1\nLine 2') → folds content with escaped newlines
+ */
 const toIcsDate = (dateStr: string | null): string | null => {
 	if (!dateStr) return null;
 	return new Date(dateStr).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 };
 
+/**
+ * RFC 5545 datetime format for timed events.
+ * Converts ISO 8601 datetime to RFC 5545 DATETIME with UTC-Z suffix.
+ *
+ * Format: YYYYMMDDTHHmmssZ (e.g., 20260409T153045Z for Apr 9, 2026 3:30:45 PM UTC)
+ * The 'Z' suffix indicates UTC/Zulu time.
+ *
+ * @param dateStr ISO 8601 datetime string (e.g., "2026-04-09T15:30:45.000Z")
+ * @returns RFC 5545 DATETIME format or null if input is null/undefined
+ * @example
+ * toIcsDate('2026-04-09T15:30:45.000Z') → '20260409T153045Z'
+ */
 const toIcsDateOnly = (dateStr: string | null): string | null => {
 	if (!dateStr) return null;
 	const d = new Date(dateStr);
@@ -104,6 +212,21 @@ const toIcsDateOnly = (dateStr: string | null): string | null => {
 	return `${y}${m}${day}`;
 };
 
+/**
+ * RFC 5545 date format for all-day events.
+ * Converts date to DATE value format (time component omitted).
+ *
+ * Format: YYYYMMDD (e.g., 20260409 for Apr 9, 2026)
+ * Used with VALUE=DATE parameter in DTSTART/DTEND properties for all-day events.
+ * RFC 5545: All-day events span from start date (inclusive) to end date (exclusive),
+ * so end date must be incremented by 1 day if not provided.
+ *
+ * @param dateStr ISO 8601 datetime string
+ * @returns RFC 5545 DATE format (YYYYMMDD) or null if input is null/undefined
+ * @example
+ * toIcsDateOnly('2026-04-09T00:00:00.000Z') → '20260409'
+ * // For all-day May 15 event: DTSTART;VALUE=DATE:20260515 DTEND;VALUE=DATE:20260516
+ */
 const sanitizeIcsValue = (value: string): string => {
 	// Escape backslashes first, then semicolons/commas, then convert newlines.
 	// Order matters: newline → \n must happen last so the introduced backslash
@@ -114,10 +237,42 @@ const sanitizeIcsValue = (value: string): string => {
 		.replace(/\r\n|\r|\n/g, '\\n');
 };
 
+/**
+ * RFC 5545 text value escaping for SUMMARY, DESCRIPTION, LOCATION, CATEGORIES, etc.
+ *
+ * RFC 5545 requires escaping of: backslashes, semicolons, commas, and newlines.
+ * Order matters!
+ * 1. Escape backslashes FIRST (so we don't double-escape in subsequent steps)
+ * 2. Escape punctuation (semicolons, commas)
+ * 3. Convert newlines to \\n literal escape sequence
+ *
+ * @param value Raw ICS property value (may contain special characters)
+ * @returns Escaped value safe for RFC 5545 property
+ * @example
+ * sanitizeIcsValue('Meeting; 10am') → 'Meeting\\; 10am'
+ * sanitizeIcsValue('Line 1\nLine 2') → 'Line 1\\nLine 2'
+ * sanitizeIcsValue('Cost: $10 \\discount') → 'Cost: $10 \\\\discount'
+ */
 const sanitizeIcsOrganizerName = (name: string): string => {
 	return name.replace(/[\r\n;:]/g, '');
 };
 
+/**
+ * Sanitize ORGANIZER CN (Common Name) field for RFC 5545 compatibility.
+ *
+ * The CN parameter in ORGANIZER cannot contain newlines, semicolons, or colons
+ * as these are special characters in the RFC 5545 syntax. Removing them prevents
+ * malformed ORGANIZER properties that might break calendar client parsing.
+ *
+ * Note: Unlike sanitizeIcsValue(), we strip characters entirely rather than escaping,
+ * because CN is a parameter value, not a text field.
+ *
+ * @param name Organizer name (may contain special characters)
+ * @returns Sanitized name with \r \n ; : removed
+ * @example
+ * sanitizeIcsOrganizerName('John; Doe') → 'John Doe'
+ * sanitizeIcsOrganizerName('Jane\nSmith') → 'JaneSmith'
+ */
 const SECURITY_HEADERS: Record<string, string> = {
 	'X-Content-Type-Options': 'nosniff',
 	'X-Frame-Options': 'DENY',
@@ -163,7 +318,7 @@ export default {
 				'SELECT COUNT(*) as cnt FROM login_attempts WHERE ip = ? AND attempted_at > ? AND success = 0',
 			)
 				.bind(clientIp, new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString())
-				.first<any>();
+				.first<LoginAttemptCount>();
 
 			if (recentFailures && recentFailures.cnt >= MAX_LOGIN_ATTEMPTS) {
 				return new Response(JSON.stringify({ error: 'Too many failed attempts. Try again later.' }), {
@@ -464,18 +619,18 @@ export default {
 		// 3. CALENDAR FEED (RFC 5545)
 		// ==========================================
 		if (url.pathname === '/subscribe' || url.pathname === '/calendar.ics') {
-			const cal = await env.DB.prepare('SELECT * FROM calendars LIMIT 1').first<any>();
+			const cal = await env.DB.prepare('SELECT * FROM calendars LIMIT 1').first<Calendar>();
 			if (!cal) return new Response('Calendar not found', { status: 404 });
 
 			const { results: events } = await env.DB.prepare('SELECT * FROM events WHERE calendar_id = ? ORDER BY dtstart ASC')
 				.bind(cal.id)
-				.all<any>();
+				.all<Event>();
 			const { results: alarms } = await env.DB.prepare(
 				'SELECT ea.* FROM event_alarms ea INNER JOIN events e ON ea.event_uid = e.uid WHERE e.calendar_id = ?'
-			).bind(cal.id).all<any>();
+			).bind(cal.id).all<EventAlarm>();
 			const { results: attachments } = await env.DB.prepare(
 				'SELECT att.* FROM event_attachments att INNER JOIN events e ON att.event_uid = e.uid WHERE e.calendar_id = ?'
-			).bind(cal.id).all<any>();
+			).bind(cal.id).all<EventAttachment>();
 
 			// Group alarms and attachments by event_uid for O(1) lookup
 			const alarmsByEvent = new Map<string, typeof alarms>();

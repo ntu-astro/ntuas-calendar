@@ -3,6 +3,15 @@ export interface Env {
 	ADMIN_PASSWORD: string;
 }
 
+import type {
+	AdminSession,
+	Calendar,
+	Event,
+	EventAlarm,
+	EventAttachment,
+	LoginAttemptCount,
+} from './types';
+
 // ==========================================
 // CONSTANTS
 // ==========================================
@@ -14,89 +23,6 @@ const MAX_SUMMARY_LENGTH = 500;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_LOCATION_LENGTH = 500;
 const VALID_STATUSES = ['CONFIRMED', 'TENTATIVE', 'CANCELLED'] as const;
-
-// ==========================================
-// TYPE DEFINITIONS
-// ==========================================
-
-/**
- * Maps admin_sessions table row
- */
-interface AdminSession {
-	token: string;
-	csrf_token: string;
-	created_at: string;
-	expires_at: string;
-}
-
-/**
- * Maps calendars table row
- */
-interface Calendar {
-	id: string;
-	prodid: string;
-	version: string;
-	calscale?: string;
-	x_wr_calname?: string;
-	x_wr_timezone?: string;
-}
-
-/**
- * Maps events table row
- */
-interface Event {
-	uid: string;
-	calendar_id: string;
-	dtstamp: string;
-	dtstart: string;
-	dtend?: string | null;
-	duration?: string | null;
-	transp?: string;
-	summary?: string | null;
-	description?: string | null;
-	location?: string | null;
-	geo?: string | null;
-	categories?: string | null;
-	class?: string;
-	status?: string;
-	url?: string | null;
-	organizer?: string | null;
-	sequence?: number;
-	created?: string | null;
-	last_modified?: string | null;
-}
-
-/**
- * Maps event_alarms table row
- */
-interface EventAlarm {
-	id: number;
-	event_uid: string;
-	action?: string;
-	trigger: string;
-	description?: string | null;
-	summary?: string | null;
-	duration?: string | null;
-	repeat?: number | null;
-}
-
-/**
- * Maps event_attachments table row
- */
-interface EventAttachment {
-	id: number;
-	event_uid: string;
-	uri?: string | null;
-	binary_data?: Blob | null;
-	fmttype?: string | null;
-}
-
-/**
- * Query result type for login attempt count aggregation
- */
-interface LoginAttemptCount {
-	cnt: number;
-}
 
 // ==========================================
 // HELPERS

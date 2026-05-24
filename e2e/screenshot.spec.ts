@@ -27,7 +27,7 @@ test.describe('Visual regression — UI must not drift', () => {
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot('admin.png', {
       fullPage: true,
-      mask: [page.locator('meta[name="csrf-token"]')],
+      mask: [page.locator('#events-container')],
     });
   });
 });

@@ -21,21 +21,72 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-main: #ffffff;
-            --bg-sidebar: #f7f7f5;
-            --bg-hover: #f0f0f0;
-            --text-primary: #111111;
-            --text-secondary: #60605c;
-            --text-tertiary: #9b9b97;
-            --accent-red: #eb5757;
-            --accent-red-light: rgba(235, 87, 87, 0.08);
-            --accent-blue: #2383e2;
-            --accent-blue-hover: #1b6ec2;
-            --accent-blue-light: rgba(35, 131, 226, 0.08);
-            --border: rgba(0, 0, 0, 0.06);
-            --border-strong: #e0e0de;
-            --radius-sm: 4px;
-            --radius-md: 6px;
+            /* Brand & primary — Notion blue (DESIGN.md link-blue token) */
+            --color-primary: #0075de;
+            --color-primary-pressed: #005bab;
+            --on-primary: #ffffff;
+            --link-blue: #0075de;
+            --link-blue-pressed: #005bab;
+
+            /* Brand spectrum + card tints (echo product database properties) */
+            --brand-pink: #ff64c8;
+            --brand-orange: #dd5b00;
+            --brand-purple: #7b3ff2;
+            --brand-teal: #2a9d99;
+            --brand-green: #1aae39;
+            --brand-yellow: #f5d75e;
+            --brand-brown: #523410;
+            --tint-peach: #ffe8d4;
+            --tint-rose: #fde0ec;
+            --tint-mint: #d9f3e1;
+            --tint-lavender: #e6e0f5;
+            --tint-sky: #dcecfa;
+            --tint-yellow: #fef7d6;
+            --tint-cream: #f8f5e8;
+
+            /* Surfaces */
+            --color-canvas: #ffffff;
+            --color-surface: #f6f5f4;
+            --color-surface-soft: #fafaf9;
+            --color-hairline: #e5e3df;
+            --color-hairline-soft: #ede9e4;
+            --color-hairline-strong: #c8c4be;
+
+            /* Warm-charcoal text hierarchy */
+            --color-ink: #1a1a1a;
+            --color-charcoal: #37352f;
+            --color-slate: #5d5b54;
+            --color-steel: #787671;
+            --color-stone: #a4a097;
+            --color-muted: #bbb8b1;
+
+            /* Semantic */
+            --color-success: #1aae39;
+            --color-warning: #dd5b00;
+            --color-error: #e03131;
+
+            /* Legacy aliases (existing markup/JS consume these) */
+            --bg-main: var(--color-canvas);
+            --bg-sidebar: var(--color-surface);
+            --bg-hover: #efedea;
+            --text-primary: var(--color-charcoal);
+            --text-secondary: var(--color-slate);
+            --text-tertiary: var(--color-steel);
+            --accent-red: var(--color-error);
+            --accent-red-light: rgba(224, 49, 49, 0.10);
+            --accent-blue: var(--link-blue);
+            --accent-blue-hover: var(--link-blue-pressed);
+            --accent-blue-light: var(--tint-lavender);
+            --border: var(--color-hairline);
+            --border-strong: var(--color-hairline-strong);
+
+            /* Radius scale (DESIGN.md rounded.*) */
+            --radius-xs: 4px;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-full: 9999px;
+
             --left-sidebar-width: 260px;
             --mini-cal-cell: 28px;
             --topbar-height: 44px;
@@ -51,7 +102,7 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Notion Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             background-color: var(--bg-main);
             color: var(--text-primary);
             height: 100vh;
@@ -170,69 +221,75 @@
         }
 
         #monthLabel {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: -0.02em;
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--color-ink);
+            line-height: 1.25;
+            letter-spacing: -0.01em;
             user-select: none;
             white-space: nowrap;
         }
 
+        /* DESIGN.md button-secondary — outlined rectangular */
         #todayBtn {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 500;
-            padding: 2px 10px;
-            border: 1px solid var(--border-strong);
-            border-radius: var(--radius-sm);
+            padding: 0 14px;
+            border: 1px solid var(--color-hairline-strong);
+            border-radius: var(--radius-md);
             background: transparent;
-            color: var(--text-secondary);
+            color: var(--color-charcoal);
             cursor: pointer;
             transition: all 0.15s;
             white-space: nowrap;
-            height: 26px;
+            height: 32px;
             display: flex;
             align-items: center;
+            font-family: inherit;
         }
 
         #todayBtn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
+            background: var(--color-surface);
+            color: var(--color-ink);
         }
 
+        /* DESIGN.md button-primary — signature purple rectangular CTA */
         .btn-subscribe {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            background: var(--accent-blue);
-            color: #fff;
+            gap: 6px;
+            background: var(--color-primary);
+            color: var(--on-primary);
             border: none;
             border-radius: var(--radius-md);
-            padding: 0 12px;
-            height: 30px;
-            font-size: 13px;
+            padding: 0 18px;
+            height: 32px;
+            font-size: 14px;
             font-weight: 500;
             font-family: inherit;
             text-decoration: none;
             cursor: pointer;
             transition: background 0.15s;
             white-space: nowrap;
+            letter-spacing: -0.005em;
         }
 
         .btn-subscribe:hover {
-            background: var(--accent-blue-hover);
+            background: var(--color-primary-pressed);
         }
 
+        /* DESIGN.md button-secondary — outlined for Copy URL */
         .btn-copy {
             display: inline-flex;
             align-items: center;
             gap: 4px;
             background: transparent;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-strong);
+            color: var(--color-charcoal);
+            border: 1px solid var(--color-hairline-strong);
             border-radius: var(--radius-md);
-            padding: 0 12px;
-            height: 30px;
-            font-size: 13px;
+            padding: 0 14px;
+            height: 32px;
+            font-size: 14px;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
@@ -241,29 +298,30 @@
         }
 
         .btn-copy:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
+            background: var(--color-surface);
+            color: var(--color-ink);
         }
 
         .btn-copy.copied {
-            border-color: #1a7f37;
-            color: #1a7f37;
+            border-color: var(--color-success);
+            color: var(--color-success);
         }
 
+        /* DESIGN.md button-ghost — quieter inline */
         .admin-link {
-            color: var(--text-tertiary);
-            font-size: 12px;
+            color: var(--color-steel);
+            font-size: 14px;
             font-weight: 500;
             text-decoration: none;
-            padding: 4px 8px;
+            padding: 6px 10px;
             border-radius: var(--radius-sm);
             transition: all 0.15s;
             white-space: nowrap;
         }
 
         .admin-link:hover {
-            color: var(--text-secondary);
-            background: var(--bg-hover);
+            color: var(--color-charcoal);
+            background: var(--color-surface);
         }
 
         /* ─── ERROR BANNER ─── */
@@ -577,12 +635,14 @@
             border-bottom: 1px solid var(--border);
         }
 
+        /* DESIGN.md micro-uppercase typography */
         .calendar-day-name {
-            font-size: 12px;
-            font-weight: 400;
-            color: var(--text-tertiary);
-            letter-spacing: 0.01em;
-            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-steel);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 10px 12px;
             user-select: none;
             text-align: center;
         }
@@ -647,18 +707,19 @@
             background: var(--bg-hover);
         }
 
+        /* Sky tint for soft selection — harmonizes with blue primary */
         .calendar-day.selected {
-            background: var(--accent-blue-light);
+            background: var(--tint-sky);
         }
 
         .calendar-day.selected:hover {
-            background: rgba(35, 131, 226, 0.12);
+            background: #c9dff5;
         }
 
         .day-number {
             font-size: 13px;
             font-weight: 400;
-            color: var(--text-primary);
+            color: var(--color-charcoal);
             line-height: 1;
             margin-bottom: 4px;
             align-self: flex-end;
@@ -667,17 +728,19 @@
         .day-number.first-of-month,
         .today-marker.first-of-month {
             font-weight: 600;
+            color: var(--color-ink);
         }
 
+        /* Today badge — DESIGN.md semantic-error red, rounded.sm */
         .today-marker {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             width: 22px;
             height: 22px;
-            border-radius: 6px;
-            background: var(--accent-red);
-            color: #fff;
+            border-radius: var(--radius-sm);
+            background: var(--color-error);
+            color: var(--on-primary);
             font-weight: 600;
             font-size: 12px;
             line-height: 1;
@@ -685,25 +748,28 @@
             align-self: flex-end;
         }
 
+        /* DESIGN.md badge-tag — soft pastel chip with strong category-toned text */
         .event-chip {
-            font-size: 10px;
-            padding: 1px 5px;
-            background: var(--accent-blue-light);
-            color: var(--accent-blue);
-            border-radius: 2px;
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--tint-sky);
+            color: var(--color-charcoal);
+            border-radius: var(--radius-xs);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             margin-top: 2px;
-            line-height: 1.5;
+            line-height: 1.4;
             font-weight: 500;
+            letter-spacing: -0.005em;
         }
 
         .event-chip-more {
-            font-size: 10px;
-            color: var(--text-tertiary);
-            margin-top: 1px;
+            font-size: 11px;
+            color: var(--color-steel);
+            margin-top: 2px;
             padding-left: 2px;
+            font-weight: 500;
         }
 
         /* ─── SIDEBAR DETAIL VIEW ─── */
@@ -713,11 +779,12 @@
             margin-bottom: 14px;
         }
 
+        /* DESIGN.md button-link — inline blue text */
         .sidebar-back-btn {
             background: none;
             border: none;
-            color: var(--accent-blue);
-            font-size: 13px;
+            color: var(--link-blue);
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             padding: 4px 0;
@@ -729,7 +796,7 @@
         }
 
         .sidebar-back-btn:hover {
-            color: var(--accent-blue-hover);
+            color: var(--link-blue-pressed);
         }
 
         #eventDetailView .detail-date-heading {
@@ -746,15 +813,16 @@
             min-width: unset;
         }
 
+        /* DESIGN.md micro-uppercase */
         .detail-date-heading {
             font-size: 11px;
-            color: var(--text-tertiary);
+            color: var(--color-steel);
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--color-hairline);
         }
 
         .detail-event-card {
@@ -776,28 +844,29 @@
             flex-wrap: wrap;
         }
 
+        /* DESIGN.md badge-tag-* — soft pastel chip family */
         .detail-badge {
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: var(--radius-sm);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.04em;
         }
 
         .badge-confirmed {
-            background: #e6f4ea;
-            color: #1a7f37;
+            background: var(--tint-mint);
+            color: #0a6e1f;
         }
 
         .badge-tentative {
-            background: #fff8e1;
-            color: #9a6700;
+            background: var(--tint-peach);
+            color: #793400;
         }
 
         .badge-cancelled {
-            background: #ffeef0;
-            color: #cf222e;
+            background: var(--tint-rose);
+            color: #a02e6d;
         }
 
         .detail-row {
@@ -823,14 +892,14 @@
         }
 
         .detail-value a {
-            color: var(--accent-blue);
+            color: var(--link-blue);
             text-decoration: underline;
             text-underline-offset: 2px;
-            text-decoration-color: rgba(35, 131, 226, 0.3);
+            text-decoration-color: rgba(0, 117, 222, 0.3);
         }
 
         .detail-value a:hover {
-            text-decoration-color: var(--accent-blue);
+            text-decoration-color: var(--link-blue);
         }
 
         /* ─── RIGHT SIDEBAR ─── */
@@ -847,10 +916,11 @@
             display: none;
         }
 
+        /* DESIGN.md micro-uppercase */
         .sidebar h3 {
             font-size: 11px;
             font-weight: 600;
-            color: var(--text-tertiary);
+            color: var(--color-steel);
             text-transform: uppercase;
             letter-spacing: 0.08em;
             margin: 0 0 12px 0;

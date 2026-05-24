@@ -122,7 +122,8 @@ async function createSession(db: D1Database): Promise<{ token: string; csrfToken
 	const csrfToken = generateRandomToken();
 	const now = new Date();
 	const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000);
-	await db.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+	await db
+		.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
 		.bind(token, csrfToken, now.toISOString(), expiresAt.toISOString())
 		.run();
 	return { token, csrfToken };
@@ -277,7 +278,8 @@ const SECURITY_HEADERS: Record<string, string> = {
 	'X-Content-Type-Options': 'nosniff',
 	'X-Frame-Options': 'DENY',
 	'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-	'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
+	'Content-Security-Policy':
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
 };
 
 export default {
@@ -429,7 +431,10 @@ export default {
 							return Response.json({ success: false, error: 'Event title is required.' }, { status: 400 });
 						}
 						if (summary.length > MAX_SUMMARY_LENGTH) {
-							return Response.json({ success: false, error: `Event title must be ${MAX_SUMMARY_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Event title must be ${MAX_SUMMARY_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 						if (!dtstart) {
 							return Response.json({ success: false, error: 'Start date is required.' }, { status: 400 });
@@ -444,10 +449,16 @@ export default {
 						const eventUrl = formData.get('url') as string;
 
 						if (description && description.length > MAX_DESCRIPTION_LENGTH) {
-							return Response.json({ success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 						if (location && location.length > MAX_LOCATION_LENGTH) {
-							return Response.json({ success: false, error: `Location must be ${MAX_LOCATION_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Location must be ${MAX_LOCATION_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 
 						if (!(VALID_STATUSES as readonly string[]).includes(status)) {
@@ -539,7 +550,10 @@ export default {
 							return Response.json({ success: false, error: 'Event title is required.' }, { status: 400 });
 						}
 						if (summary.length > MAX_SUMMARY_LENGTH) {
-							return Response.json({ success: false, error: `Event title must be ${MAX_SUMMARY_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Event title must be ${MAX_SUMMARY_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 
 						let dtstart: string | null;
@@ -569,12 +583,18 @@ export default {
 
 						const location = (formData.get('location') as string) || null;
 						if (location && location.length > MAX_LOCATION_LENGTH) {
-							return Response.json({ success: false, error: `Location must be ${MAX_LOCATION_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Location must be ${MAX_LOCATION_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 
 						const description = (formData.get('description') as string) || null;
 						if (description && description.length > MAX_DESCRIPTION_LENGTH) {
-							return Response.json({ success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }, { status: 400 });
+							return Response.json(
+								{ success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` },
+								{ status: 400 },
+							);
 						}
 
 						const geo = (formData.get('geo') as string) || null;
@@ -626,11 +646,15 @@ export default {
 				.bind(cal.id)
 				.all<Event>();
 			const { results: alarms } = await env.DB.prepare(
-				'SELECT ea.* FROM event_alarms ea INNER JOIN events e ON ea.event_uid = e.uid WHERE e.calendar_id = ?'
-			).bind(cal.id).all<EventAlarm>();
+				'SELECT ea.* FROM event_alarms ea INNER JOIN events e ON ea.event_uid = e.uid WHERE e.calendar_id = ?',
+			)
+				.bind(cal.id)
+				.all<EventAlarm>();
 			const { results: attachments } = await env.DB.prepare(
-				'SELECT att.* FROM event_attachments att INNER JOIN events e ON att.event_uid = e.uid WHERE e.calendar_id = ?'
-			).bind(cal.id).all<EventAttachment>();
+				'SELECT att.* FROM event_attachments att INNER JOIN events e ON att.event_uid = e.uid WHERE e.calendar_id = ?',
+			)
+				.bind(cal.id)
+				.all<EventAttachment>();
 
 			// Group alarms and attachments by event_uid for O(1) lookup
 			const alarmsByEvent = new Map<string, typeof alarms>();
@@ -730,32 +754,72 @@ const ADMIN_HTML = (csrfToken: string) => `
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-main: #ffffff;
-      --bg-sidebar: #f7f7f5;
-      --bg-hover: #f0f0f0;
-      --text-primary: #111111;
-      --text-secondary: #60605c;
-      --text-tertiary: #9b9b97;
-      --accent-blue: #2383e2;
-      --accent-blue-hover: #1b6ec2;
-      --accent-blue-light: rgba(35, 131, 226, 0.08);
-      --border: rgba(0, 0, 0, 0.06);
-      --border-strong: #e0e0de;
-      --success: #1a7f37;
-      --danger: #cf222e;
-      --danger-hover: #a40e26;
-      --danger-light: #ffeef0;
-      --warning: #9a6700;
-      --radius-sm: 4px;
-      --radius-md: 6px;
+      /* Notion blue primary (DESIGN.md link-blue token) */
+      --color-primary: #0075de;
+      --color-primary-pressed: #005bab;
+      --on-primary: #ffffff;
+      --link-blue: #0075de;
+      --link-blue-pressed: #005bab;
+
+      /* Surfaces */
+      --color-canvas: #ffffff;
+      --color-surface: #f6f5f4;
+      --color-surface-soft: #fafaf9;
+      --color-hairline: #e5e3df;
+      --color-hairline-soft: #ede9e4;
+      --color-hairline-strong: #c8c4be;
+
+      /* Warm-charcoal text hierarchy */
+      --color-ink: #1a1a1a;
+      --color-charcoal: #37352f;
+      --color-slate: #5d5b54;
+      --color-steel: #787671;
+      --color-stone: #a4a097;
+      --color-muted: #bbb8b1;
+
+      /* Card tints */
+      --tint-lavender: #e6e0f5;
+      --tint-rose: #fde0ec;
+      --tint-mint: #d9f3e1;
+      --tint-peach: #ffe8d4;
+
+      /* Semantic */
+      --color-success: #1aae39;
+      --color-warning: #dd5b00;
+      --color-error: #e03131;
+
+      /* Legacy aliases */
+      --bg-main: var(--color-canvas);
+      --bg-sidebar: var(--color-surface);
+      --bg-hover: #efedea;
+      --text-primary: var(--color-charcoal);
+      --text-secondary: var(--color-slate);
+      --text-tertiary: var(--color-steel);
+      --accent-blue: var(--link-blue);
+      --accent-blue-hover: var(--link-blue-pressed);
+      --accent-blue-light: var(--tint-lavender);
+      --border: var(--color-hairline);
+      --border-strong: var(--color-hairline-strong);
+      --success: var(--color-success);
+      --danger: var(--color-error);
+      --danger-hover: #b71c1c;
+      --danger-light: var(--tint-rose);
+      --warning: var(--color-warning);
+
+      /* Radius (DESIGN.md rounded.*) */
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
     }
 
     * { box-sizing: border-box; }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: var(--bg-sidebar);
-      color: var(--text-primary);
+      font-family: 'Notion Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background-color: var(--color-surface);
+      color: var(--color-charcoal);
       padding: 0;
       margin: 0;
       -webkit-font-smoothing: antialiased;
@@ -813,23 +877,25 @@ const ADMIN_HTML = (csrfToken: string) => `
       color: var(--text-primary);
     }
 
+    /* DESIGN.md micro-uppercase */
     h3 {
       font-size: 11px;
       font-weight: 600;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--color-hairline);
       padding-bottom: 6px;
       margin-top: 20px;
       margin-bottom: 12px;
-      color: var(--text-tertiary);
+      color: var(--color-steel);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
     }
 
+    /* DESIGN.md card-feature — 12px rounded canvas card */
     .panel {
-      background: var(--bg-main);
+      background: var(--color-canvas);
       padding: 24px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--color-hairline);
       margin-bottom: 20px;
     }
 
@@ -851,38 +917,42 @@ const ADMIN_HTML = (csrfToken: string) => `
       display: block;
     }
 
+    /* DESIGN.md text-input — 44px height, hairline-strong border */
     input, textarea, select {
-      padding: 8px 10px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border-strong);
-      background: var(--bg-main);
-      color: var(--text-primary);
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-hairline-strong);
+      background: var(--color-canvas);
+      color: var(--color-ink);
       width: 100%;
       max-width: 100%;
       box-sizing: border-box;
       font-family: inherit;
-      font-size: 13px;
-      transition: border-color 0.15s;
+      font-size: 14px;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
+    /* text-input-focused — blue ring */
     input:focus, textarea:focus, select:focus {
       outline: none;
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 0 2px var(--accent-blue-light);
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.18);
     }
 
+    /* DESIGN.md button-primary — signature purple CTA */
     button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: var(--accent-blue);
-      color: white;
-      padding: 8px 16px;
+      background: var(--color-primary);
+      color: var(--on-primary);
+      padding: 10px 18px;
       border: none;
       border-radius: var(--radius-md);
       cursor: pointer;
       font-weight: 500;
-      font-size: 13px;
+      font-size: 14px;
+      line-height: 1.3;
       font-family: inherit;
       width: 100%;
       margin-top: 8px;
@@ -890,7 +960,7 @@ const ADMIN_HTML = (csrfToken: string) => `
     }
 
     button:hover:not(:disabled) {
-      background: var(--accent-blue-hover);
+      background: var(--color-primary-pressed);
     }
 
     button:disabled {
@@ -951,34 +1021,38 @@ const ADMIN_HTML = (csrfToken: string) => `
       margin: 0;
     }
 
+    /* DESIGN.md badge-tag-* style — soft tinted pill, strong tone for destructive intent */
     .btn-delete {
-      background: var(--danger-light);
-      color: var(--danger);
-      padding: 6px 12px;
+      background: var(--tint-rose);
+      color: #a02e6d;
+      padding: 8px 14px;
       width: auto;
       margin-top: 0;
-      font-size: 12px;
+      font-size: 13px;
+      border-radius: var(--radius-md);
     }
 
     .btn-delete:hover:not(:disabled) {
-      background: var(--danger);
-      color: white;
+      background: var(--color-error);
+      color: var(--on-primary);
     }
 
+    /* DESIGN.md button-secondary — outlined rectangular */
     .btn-edit {
       background: transparent;
-      border: 1px solid var(--border-strong);
-      color: var(--text-secondary);
-      padding: 6px 12px;
+      border: 1px solid var(--color-hairline-strong);
+      color: var(--color-charcoal);
+      padding: 8px 14px;
       width: auto;
       margin-top: 0;
-      font-size: 12px;
+      font-size: 13px;
+      border-radius: var(--radius-md);
     }
 
     .btn-edit:hover:not(:disabled) {
-      background: var(--bg-hover);
-      color: var(--text-primary);
-      border-color: var(--border-strong);
+      background: var(--color-surface);
+      color: var(--color-ink);
+      border-color: var(--color-hairline-strong);
     }
 
     .del-pass { width: 120px; padding: 6px 8px; font-size: 12px; }
@@ -996,15 +1070,16 @@ const ADMIN_HTML = (csrfToken: string) => `
 
     .modal-overlay.open { display: flex; }
 
+    /* DESIGN.md card-base, elevation 4 (modal shadow) */
     .modal {
-      background: var(--bg-main);
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
-      padding: 24px;
+      background: var(--color-canvas);
+      border: 1px solid var(--color-hairline);
+      border-radius: var(--radius-lg);
+      padding: 28px;
       width: 90%;
       max-width: 520px;
       position: relative;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      box-shadow: rgba(15, 15, 15, 0.16) 0px 16px 48px -8px;
       max-height: 90vh;
       overflow-y: auto;
     }
@@ -1091,19 +1166,21 @@ const ADMIN_HTML = (csrfToken: string) => `
       transition: transform 0.2s ease;
       box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
+    /* Toggle on = signature purple */
     .toggle-switch input:checked + .slider {
-      background: var(--accent-blue);
+      background: var(--color-primary);
     }
     .toggle-switch input:checked + .slider::before {
       transform: translateX(18px);
     }
+    /* Soft-blue tag — harmonizes with primary */
     .all-day-badge {
       display: inline-block;
-      padding: 2px 6px;
-      background: var(--accent-blue-light);
-      color: var(--accent-blue);
+      padding: 2px 8px;
+      background: #dcecfa;
+      color: #003f7a;
       border-radius: var(--radius-sm);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.04em;
       margin-left: 6px;
@@ -1690,22 +1767,24 @@ const LOGIN_HTML = (error: boolean) => `
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-main: #f7f7f5;
-      --bg-card: #ffffff;
-      --text-primary: #111111;
-      --text-secondary: #60605c;
-      --text-tertiary: #9b9b97;
-      --accent-blue: #2383e2;
-      --accent-blue-hover: #1b6ec2;
-      --accent-blue-light: rgba(35, 131, 226, 0.08);
-      --border-strong: #e0e0de;
-      --danger: #cf222e;
+      /* Notion blue primary (DESIGN.md link-blue token) */
+      --color-primary: #0075de;
+      --color-primary-pressed: #005bab;
+      --on-primary: #ffffff;
+      --color-canvas: #ffffff;
+      --color-surface: #f6f5f4;
+      --color-hairline: #e5e3df;
+      --color-hairline-strong: #c8c4be;
+      --color-ink: #1a1a1a;
+      --color-charcoal: #37352f;
+      --color-steel: #787671;
+      --color-error: #e03131;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-main);
-      color: var(--text-primary);
+      font-family: 'Notion Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--color-surface);
+      color: var(--color-charcoal);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1713,67 +1792,75 @@ const LOGIN_HTML = (error: boolean) => `
       -webkit-font-smoothing: antialiased;
       font-size: 14px;
     }
+    /* DESIGN.md card-feature — 12px rounded canvas card with subtle elevation */
     .login-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
+      background: var(--color-canvas);
+      border: 1px solid var(--color-hairline);
+      border-radius: 12px;
       padding: 40px 32px;
       width: 90%;
       max-width: 380px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      box-shadow: rgba(15, 15, 15, 0.08) 0px 4px 12px 0px;
       text-align: center;
     }
+    /* DESIGN.md heading-4 */
     .login-card h1 {
-      font-size: 18px;
+      font-size: 22px;
       font-weight: 600;
       letter-spacing: -0.01em;
-      margin-bottom: 4px;
-      color: var(--text-primary);
+      margin-bottom: 6px;
+      color: var(--color-ink);
+      line-height: 1.3;
     }
     .login-card p {
-      color: var(--text-tertiary);
-      font-size: 13px;
+      color: var(--color-steel);
+      font-size: 14px;
       margin-bottom: 24px;
     }
+    /* DESIGN.md text-input — 44px height, 8px rounded, hairline-strong border */
     .login-card input {
       width: 100%;
-      padding: 10px 12px;
-      border-radius: 4px;
-      border: 1px solid var(--border-strong);
-      background: var(--bg-card);
-      color: var(--text-primary);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--color-hairline-strong);
+      background: var(--color-canvas);
+      color: var(--color-ink);
       font-family: inherit;
       font-size: 14px;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
       text-align: center;
+      height: 44px;
     }
+    /* text-input-focused — blue ring */
     .login-card input:focus {
       outline: none;
-      border-color: var(--accent-blue);
-      box-shadow: 0 0 0 2px var(--accent-blue-light);
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(0, 117, 222, 0.18);
     }
+    /* DESIGN.md button-primary — signature purple rectangular CTA */
     .login-card button {
       width: 100%;
-      padding: 10px;
-      margin-top: 12px;
+      padding: 10px 18px;
+      margin-top: 14px;
       border: none;
-      border-radius: 6px;
-      background: var(--accent-blue);
-      color: white;
+      border-radius: 8px;
+      background: var(--color-primary);
+      color: var(--on-primary);
       font-family: inherit;
       font-size: 14px;
       font-weight: 500;
+      line-height: 1.3;
       cursor: pointer;
       transition: background 0.15s;
     }
     .login-card button:hover {
-      background: var(--accent-blue-hover);
+      background: var(--color-primary-pressed);
     }
     .error-msg {
-      color: var(--danger);
-      font-size: 12px;
+      color: var(--color-error);
+      font-size: 13px;
       font-weight: 500;
-      margin-top: 12px;
+      margin-top: 14px;
     }
   </style>
 </head>

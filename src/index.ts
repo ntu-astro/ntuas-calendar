@@ -38,6 +38,7 @@ import {
 import { LOGIN_HTML } from './templates/login.html.ts';
 import { ADMIN_HTML } from './templates/admin.html.ts';
 import { handleHealth } from './routes/health.ts';
+import { handleEvents } from './routes/events.ts';
 
 
 export default {
@@ -47,21 +48,8 @@ export default {
 		const healthRes = handleHealth(url);
 		if (healthRes) return healthRes;
 
-		// ==========================================
-		// 1. API: FETCH EVENTS (JSON)
-		// ==========================================
-		if (url.pathname === '/api/events' && request.method === 'GET') {
-			const { results: events } = await env.DB.prepare(
-				'SELECT uid, summary, dtstart, dtend, status, location, geo, description, categories, url, organizer FROM events ORDER BY dtstart DESC',
-			).all();
-			return new Response(JSON.stringify(events), {
-				headers: {
-					'Content-Type': 'application/json',
-					'Cache-Control': 'public, max-age=10, s-maxage=30',
-					'Access-Control-Allow-Origin': '*',
-				},
-			});
-		}
+		const eventsRes = await handleEvents(url, request, env);
+		if (eventsRes) return eventsRes;
 
 		// ==========================================
 		// 2. ADMIN LOGIN / LOGOUT

@@ -1,7 +1,15 @@
-export interface Env {
-	DB: D1Database;
-	ADMIN_PASSWORD: string;
-}
+import {
+	Env,
+	SESSION_MAX_AGE_SECONDS,
+	RATE_LIMIT_WINDOW_MS,
+	MAX_LOGIN_ATTEMPTS,
+	ICS_LINE_FOLD_OCTETS,
+	MAX_SUMMARY_LENGTH,
+	MAX_DESCRIPTION_LENGTH,
+	MAX_LOCATION_LENGTH,
+	VALID_STATUSES,
+	SECURITY_HEADERS,
+} from './constants';
 
 import type {
 	AdminSession,
@@ -11,18 +19,6 @@ import type {
 	EventAttachment,
 	LoginAttemptCount,
 } from './types';
-
-// ==========================================
-// CONSTANTS
-// ==========================================
-const SESSION_MAX_AGE_SECONDS = 86400;
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
-const MAX_LOGIN_ATTEMPTS = 5;
-const ICS_LINE_FOLD_OCTETS = 75;
-const MAX_SUMMARY_LENGTH = 500;
-const MAX_DESCRIPTION_LENGTH = 5000;
-const MAX_LOCATION_LENGTH = 500;
-const VALID_STATUSES = ['CONFIRMED', 'TENTATIVE', 'CANCELLED'] as const;
 
 // ==========================================
 // HELPERS
@@ -200,13 +196,7 @@ const sanitizeIcsOrganizerName = (name: string): string => {
  * sanitizeIcsOrganizerName('John; Doe') → 'John Doe'
  * sanitizeIcsOrganizerName('Jane\nSmith') → 'JaneSmith'
  */
-const SECURITY_HEADERS: Record<string, string> = {
-	'X-Content-Type-Options': 'nosniff',
-	'X-Frame-Options': 'DENY',
-	'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-	'Content-Security-Policy':
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
-};
+
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {

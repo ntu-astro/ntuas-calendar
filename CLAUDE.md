@@ -95,7 +95,6 @@ Key tables (full schema in `schema.sql`):
 | `event_attachments` | File/URI attachments linked to events |
 | `admin_sessions` | Active session tokens and CSRF tokens |
 | `login_attempts` | Rate limiting — tracks failed logins by IP |
-| `timezone_rules` | VTIMEZONE definitions (present in schema, unused at runtime) |
 
 Indexes: `(calendar_id, dtstart)`, `(dtstart DESC)` on events; `(ip, attempted_at)` on login_attempts.
 

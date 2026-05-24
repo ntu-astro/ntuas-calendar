@@ -67,18 +67,6 @@ CREATE TABLE IF NOT EXISTS login_attempts (
   attempted_at TEXT NOT NULL,
   success INTEGER NOT NULL DEFAULT 0
 );
-CREATE TABLE IF NOT EXISTS timezone_rules (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  calendar_id TEXT NOT NULL,
-  tzid TEXT NOT NULL,
-  type TEXT NOT NULL,
-  dtstart TEXT NOT NULL,
-  tzoffsetfrom TEXT NOT NULL,
-  tzoffsetto TEXT NOT NULL,
-  rrule TEXT,
-  tzname TEXT,
-  FOREIGN KEY (calendar_id) REFERENCES calendars(id) ON DELETE CASCADE
-);
 `;
 
 // Run one or more semicolon-separated SQL statements against the test D1 binding

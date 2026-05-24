@@ -5,7 +5,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"account_id": "975178f94ce2b9f286656ea810bce986", // Insert your 32-character ID here
-	"name": "my-calendar-api",
+	"name": "ntuas-calendar",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-03-01",
 	"compatibility_flags": [

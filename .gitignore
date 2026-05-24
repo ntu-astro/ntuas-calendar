@@ -165,3 +165,10 @@ dist
 .env*
 !.env.example
 .wrangler/
+
+# Playwright
+test-results/
+playwright-report/
+e2e/**/*-snapshots/diff-*.png
+e2e/**/*-snapshots/actual-*.png
+.playwright-cache/

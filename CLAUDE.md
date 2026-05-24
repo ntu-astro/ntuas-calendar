@@ -11,8 +11,22 @@
 
 Tests use an in-memory D1 — no local or remote database needed:
 ```bash
-npm test
+npm test                                   # Runs all unit tests (sequential spec runs are recommended)
+npm test -- --run test/templates.spec.ts   # Runs HTML byte-snapshot regression tests
 ```
+
+### Visual Regression
+
+UI changes to `src/templates/*` or any code affecting `/admin` or `/admin/login` must keep the visual regression gates green:
+```bash
+npm run test:e2e                           # Playwright pixel-diff (Chromium 1280x800)
+```
+If you intentionally change the UI, update the baselines:
+```bash
+npm test -- --run test/templates.spec.ts -u   # Update HTML byte snapshots
+npm run test:e2e -- --update-snapshots         # Update Playwright screenshots
+```
+Verify the new screenshots look correct before committing them.
 
 ## Architecture
 
@@ -24,14 +38,29 @@ npm test
 - **Compat flags**: `nodejs_compat`, `global_fetch_strictly_public`
 
 ### Project Structure
-- `src/index.ts` — single monolithic Worker (~1,600 lines): all routing, business logic, and server-rendered admin HTML inline
-- `public/index.html` — static landing page calendar (plain HTML + inline JS, fetches `/api/events`)
-- `wrangler.jsonc` — deployment config (custom domain `calendar.ntuas.com`, D1 binding, assets binding)
-- `test/index.spec.ts` — full test suite using in-memory D1
-- `schema.sql`, `seed.sql`, `remote_backup.sql` — database schema, seed data, production backup
+- `src/index.ts` — Thin entry point (~25 lines): fetch handler dispatches to route modules
+- `src/constants.ts` — `Env` interface, numeric/string constants, and `SECURITY_HEADERS`
+- `src/types.ts` — All shared DB row interfaces
+- `src/lib/auth.ts` — Session, cookie, CSRF, and password-compare helpers
+- `src/lib/ics.ts` — RFC 5545 helpers (fold, date formatters, value escaping)
+- `src/routes/health.ts` — `/health` route handler
+- `src/routes/events.ts` — `/api/events` route handler
+- `src/routes/admin.ts` — `/admin`, `/admin/login`, `/admin/logout` route handlers
+- `src/routes/ics.ts` — `/subscribe`, `/calendar.ics` route handlers
+- `src/templates/admin.html.ts` — `ADMIN_HTML(csrfToken)` template literal
+- `src/templates/login.html.ts` — `LOGIN_HTML(error)` template literal
+- `public/index.html` — Static landing page calendar (plain HTML + inline JS, fetches `/api/events`)
+- `public/generate.cjs` — CommonJS static-reproducer tool for venue parsing
+- `wrangler.jsonc` — Deployment config (custom domain `calendar.ntuas.com`, D1 binding, assets binding)
+- `test/index.spec.ts` — Full test suite using in-memory D1
+- `test/templates.spec.ts` — HTML byte-snapshot regression tests for admin & login pages
+- `e2e/screenshot.spec.ts` — Playwright pixel-diff visual regression for admin & login pages
+- `playwright.config.ts` — Playwright configuration
+- `scripts/read-dev-vars.mjs` — Parses `.dev.vars` for E2E tests
+- `schema.sql`, `seed.sql`, `remote_backup.sql` — Database schema, seed data, production backup
 
 ### Routing
-All routing is pathname-matching inside the single `fetch` handler in `src/index.ts`:
+All routing is dispatched in `src/index.ts` fetch handler to separate route handlers in `src/routes/`:
 
 | Route | Method | Description |
 |-------|--------|-------------|

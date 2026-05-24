@@ -172,3 +172,6 @@ playwright-report/
 e2e/**/*-snapshots/*-diff.png
 e2e/**/*-snapshots/*-actual.png
 .playwright-cache/
+
+# Wrangler-generated types — regenerable via `npm run cf-typegen`
+worker-configuration.d.ts

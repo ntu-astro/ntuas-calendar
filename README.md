@@ -100,6 +100,17 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    ```
    The application will be available at `http://localhost:8787` (or whatever port Wrangler assigns).
 
+### Generating Cloudflare runtime types
+
+The `worker-configuration.d.ts` file is generated from `wrangler.jsonc` and not committed.
+After cloning or after editing `wrangler.jsonc`, regenerate it:
+
+```bash
+npm run cf-typegen
+```
+
+This is required before running `npm run lint` for the first time.
+
 ## Testing
 
 Tests run inside a real Cloudflare Workers runtime (via `@cloudflare/vitest-pool-workers`) with an in-memory D1 database — no remote database or secrets required.

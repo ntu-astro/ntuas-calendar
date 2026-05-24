@@ -37,18 +37,15 @@ import {
 
 import { LOGIN_HTML } from './templates/login.html.ts';
 import { ADMIN_HTML } from './templates/admin.html.ts';
+import { handleHealth } from './routes/health.ts';
 
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
 
-		// ==========================================
-		// 0. HEALTH CHECK
-		// ==========================================
-		if (url.pathname === '/health') {
-			return Response.json({ status: 'ok' });
-		}
+		const healthRes = handleHealth(url);
+		if (healthRes) return healthRes;
 
 		// ==========================================
 		// 1. API: FETCH EVENTS (JSON)

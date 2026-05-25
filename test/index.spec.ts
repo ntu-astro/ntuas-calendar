@@ -317,6 +317,47 @@ describe('POST /admin — update event', () => {
 		expect(row?.status).toBe('TENTATIVE');
 		expect(row?.sequence).toBe(1);
 	});
+
+	it('updates ALL editable fields: categories, class, url, organizer', async () => {
+		// Seed event with initial values for the four fields under test.
+		const uid = 'event-update-fields-test';
+		await env.DB.prepare(
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class, categories, url, organizer)
+				 VALUES (?, 'main-cal-001', '20260524T120000Z', '20260601T100000Z', 'Initial', 'CONFIRMED', 'PUBLIC', 'OLD_CAT', 'https://old.example', 'mailto:old@x.com')`,
+		)
+			.bind(uid)
+			.run();
+
+		const { cookie, csrfToken } = await login();
+		const res = await adminPost(cookie, csrfToken, {
+			action: 'update',
+			uid,
+			summary: 'Updated',
+			dtstart: '2026-06-01T10:00',
+			status: 'CONFIRMED',
+			categories: 'NEW_CAT,LECTURE',
+			class: 'PRIVATE',
+			url: 'https://new.example',
+			organizer_email: 'new@x.com',
+		});
+		expect(res.status).toBe(200);
+
+		const row = await env.DB.prepare('SELECT * FROM events WHERE uid = ?').bind(uid).first<{
+			summary: string;
+			categories: string;
+			class: string;
+			url: string;
+			organizer: string;
+		}>();
+		expect(row).toBeTruthy();
+		expect(row?.summary).toBe('Updated');
+		expect(row?.categories).toBe('NEW_CAT,LECTURE');
+		expect(row?.class).toBe('PRIVATE');
+		expect(row?.url).toBe('https://new.example');
+		expect(row?.organizer).toBe(':mailto:new@x.com');
+
+		await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
+	});
 });
 
 // ─── POST /admin — delete event ──────────────────────────────────────────────

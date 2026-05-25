@@ -35,7 +35,13 @@
 			"database_id": "8dc17ef6-f1fa-4871-8bd6-e70fb31ca8e3",
 			"migrations_dir": "./migrations"
 		}
-	]
+	],
+	"secrets": {
+		// Source of truth for `wrangler types` so CI can typecheck without .dev.vars,
+		// and for `wrangler deploy` which validates these are configured on the Worker
+		// (set via `npx wrangler secret put ADMIN_PASSWORD`).
+		"required": ["ADMIN_PASSWORD"]
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

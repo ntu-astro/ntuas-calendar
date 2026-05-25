@@ -1,6 +1,7 @@
 // Vite's `?raw` import returns the file contents as a string at build time,
 // so this works inside the Workers runtime where Node's `fs` is unavailable.
-import schemaSql from '../../schema.sql?raw';
+// migrations/0001_initial.sql is the canonical schema source (schema.sql is deprecated).
+import schemaSql from '../../migrations/0001_initial.sql?raw';
 
 /**
  * Load the production schema.sql, rewrite it to be safe for repeated test runs,

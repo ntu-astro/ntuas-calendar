@@ -19,7 +19,24 @@ The schema is managed by wrangler migrations in `migrations/`. To change the sch
 
 See [`migrations/README.md`](../migrations/README.md) for conventions and recovery steps.
 
-The legacy `schema.sql` is retained only as a reference; the canonical source is `migrations/0001_initial.sql`.
+The canonical schema source is `migrations/0001_initial.sql` plus any later migrations. The legacy root-level `schema.sql` was removed in `33c43e7` — do not reintroduce it.
+
+## Adding Secrets
+
+Secrets (anything set via `wrangler secret put`) must be registered in `wrangler.jsonc → secrets.required`. This is the single source of truth — `wrangler types` reads it, `wrangler dev` warns when it's missing, and `wrangler deploy` fails if it isn't configured on the Worker.
+
+To add a new secret `MY_NEW_SECRET`:
+
+1. Add it to `.dev.vars` for local dev (gitignored): `MY_NEW_SECRET=dev_value`.
+2. Add the name to `wrangler.jsonc → secrets.required`:
+   ```jsonc
+   "secrets": { "required": ["ADMIN_PASSWORD", "MY_NEW_SECRET"] }
+   ```
+3. `npm run cf-typegen` — regenerates `worker-configuration.d.ts` so `env.MY_NEW_SECRET` typechecks.
+4. Use it in code as `env.MY_NEW_SECRET` (typed `string`).
+5. Set it in production before next deploy: `npx wrangler secret put MY_NEW_SECRET`.
+
+Do NOT hand-write an ambient `Env` augmentation in `src/**/*.d.ts` — wrangler does this automatically from `secrets.required`. If you see a CI typecheck failure like `Property 'X' does not exist on type 'Env'`, the missing entry is almost always in `wrangler.jsonc → secrets.required`.
 
 ## Testing
 

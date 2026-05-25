@@ -122,3 +122,19 @@ Indexes: `(calendar_id, dtstart)`, `(dtstart DESC)` on events; `(ip, attempted_a
 npm run deploy   # wrangler deploy → calendar.ntuas.com
 ```
 Bindings in `wrangler.jsonc`: `DB` (D1 `calendar_db`), `ASSETS` (`./public`), observability enabled.
+
+## Updating Venues
+
+The NTU venue list is in `public/data/venues.json` (served as a static asset).
+
+To add or remove venues:
+
+1. Edit `public/data/venues.json` directly, OR
+2. Edit `scripts/generate-venues.mjs` (the canonical source for additions that follow a pattern, e.g., "TR+1 through TR+99") and run:
+   ```bash
+   node scripts/generate-venues.mjs
+   ```
+3. Verify by opening the admin page locally (`npm run dev`, then http://localhost:8787/admin) and confirming the location autocomplete reflects the change.
+4. Commit and push — the static asset deploys with the next worker deploy.
+
+The COORDS map at the top of `venues.json` is a small set of pre-defined campus regions; new regions need a new key + lat;lng pair.

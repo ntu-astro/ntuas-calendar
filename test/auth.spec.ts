@@ -20,30 +20,30 @@ beforeAll(async () => {
 // ─── timingSafeCompare ──────────────────────────────────────────────────────
 
 describe('timingSafeCompare', () => {
-	it('returns true for equal strings', () => {
-		expect(timingSafeCompare('hello', 'hello')).toBe(true);
+	it('returns true for equal strings', async () => {
+		expect(await timingSafeCompare('hello', 'hello')).toBe(true);
 	});
 
-	it('returns false for different strings of the same length', () => {
-		expect(timingSafeCompare('abcdef', 'abcxyz')).toBe(false);
+	it('returns false for different strings of the same length', async () => {
+		expect(await timingSafeCompare('abcdef', 'abcxyz')).toBe(false);
 	});
 
-	it('returns false for strings of different lengths', () => {
-		expect(timingSafeCompare('short', 'much-longer-string')).toBe(false);
+	it('returns false for strings of different lengths', async () => {
+		expect(await timingSafeCompare('short', 'much-longer-string')).toBe(false);
 	});
 
-	it('returns true when both strings are empty', () => {
-		expect(timingSafeCompare('', '')).toBe(true);
+	it('returns true when both strings are empty', async () => {
+		expect(await timingSafeCompare('', '')).toBe(true);
 	});
 
-	it('returns false when only one string is empty', () => {
-		expect(timingSafeCompare('', 'nonempty')).toBe(false);
-		expect(timingSafeCompare('nonempty', '')).toBe(false);
+	it('returns false when only one string is empty', async () => {
+		expect(await timingSafeCompare('', 'nonempty')).toBe(false);
+		expect(await timingSafeCompare('nonempty', '')).toBe(false);
 	});
 
-	it('compares unicode strings correctly', () => {
-		expect(timingSafeCompare('café 你好 🎉', 'café 你好 🎉')).toBe(true);
-		expect(timingSafeCompare('café 你好 🎉', 'café 你好 🎊')).toBe(false);
+	it('compares unicode strings correctly', async () => {
+		expect(await timingSafeCompare('café 你好 🎉', 'café 你好 🎉')).toBe(true);
+		expect(await timingSafeCompare('café 你好 🎉', 'café 你好 🎊')).toBe(false);
 	});
 });
 

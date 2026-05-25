@@ -44,7 +44,7 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
 	const formData = await request.formData();
 	const password = formData.get('password') as string;
 
-	if (!timingSafeCompare(password, env.ADMIN_PASSWORD)) {
+	if (!(await timingSafeCompare(password, env.ADMIN_PASSWORD))) {
 		await env.DB.prepare('INSERT INTO login_attempts (ip, attempted_at, success) VALUES (?, ?, 0)')
 			.bind(clientIp, new Date().toISOString())
 			.run();
@@ -131,13 +131,11 @@ async function handleAdminMutation(request: Request, env: Env, csrfToken: string
 			if (result) return result;
 		}
 
-		const cache = caches.default;
-		const origin = new URL(request.url).origin;
-		await Promise.all([
-			cache.delete(new Request(`${origin}/api/events`)),
-			cache.delete(new Request(`${origin}/subscribe`)),
-			cache.delete(new Request(`${origin}/calendar.ics`)),
-		]);
+		// Caching strategy: Event lists and ICS feeds carry dynamic query parameters
+		// (e.g. ?from=...&to=...) which are part of the CDN cache key. Because exact-URL
+		// cache purges do not match query-parameterized keys, manual purging is omitted
+		// here. Edge CDN caching is governed by short TTLs (10s browser, 30s edge),
+		// ensuring automatic, high-performance updates without stale state.
 
 		return Response.json({ success: true, message: 'Action completed successfully' });
 	} catch (e: unknown) {
@@ -254,7 +252,7 @@ async function updateEvent(formData: FormData, env: Env): Promise<Response | nul
 async function deleteEvent(formData: FormData, env: Env): Promise<Response | null> {
 	const uid = formData.get('uid') as string;
 	const password = formData.get('password') as string;
-	if (!timingSafeCompare(password, env.ADMIN_PASSWORD)) {
+	if (!(await timingSafeCompare(password, env.ADMIN_PASSWORD))) {
 		return Response.json({ success: false, error: 'Incorrect password for deletion.' }, { status: 401 });
 	}
 	await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();

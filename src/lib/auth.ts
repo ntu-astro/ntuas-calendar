@@ -5,18 +5,17 @@ export function generateRandomToken(): string {
 	return crypto.randomUUID() + '-' + crypto.randomUUID();
 }
 
-export function timingSafeCompare(input: string, expected: string): boolean {
+export async function timingSafeCompare(input: string, expected: string): Promise<boolean> {
 	const encoder = new TextEncoder();
 	const inputBytes = encoder.encode(input);
 	const expectedBytes = encoder.encode(expected);
-	const maxLen = Math.max(inputBytes.byteLength, expectedBytes.byteLength);
-	const a = new Uint8Array(maxLen);
-	const b = new Uint8Array(maxLen);
-	a.set(inputBytes);
-	b.set(expectedBytes);
-	const bytesEqual = crypto.subtle.timingSafeEqual(a, b);
-	const lengthsEqual = inputBytes.byteLength === expectedBytes.byteLength;
-	return bytesEqual && lengthsEqual;
+	const [inputHash, expectedHash] = await Promise.all([
+		crypto.subtle.digest('SHA-256', inputBytes),
+		crypto.subtle.digest('SHA-256', expectedBytes),
+	]);
+	const a = new Uint8Array(inputHash);
+	const b = new Uint8Array(expectedHash);
+	return crypto.subtle.timingSafeEqual(a, b);
 }
 
 export async function createSession(db: D1Database): Promise<{ token: string; csrfToken: string }> {

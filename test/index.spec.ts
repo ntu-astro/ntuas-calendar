@@ -490,6 +490,30 @@ describe('GET /subscribe', () => {
 			).run();
 		}
 	});
+
+	it('includes ATTACH lines when event has attachments', async () => {
+		const uid = 'event-attach-test-uid';
+		const dtstamp = '20260524T120000Z';
+		const dtstart = '20260601T100000Z';
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class) VALUES (?, 'main-cal-001', ?, ?, 'Event With Attachment', 'CONFIRMED', 'PUBLIC')",
+		)
+			.bind(uid, dtstamp, dtstart)
+			.run();
+		await env.DB.prepare('INSERT INTO event_attachments (event_uid, uri, fmttype) VALUES (?, ?, ?)')
+			.bind(uid, 'https://example.com/slides.pdf', 'application/pdf')
+			.run();
+
+		try {
+			const res = await req(`${BASE}/subscribe`);
+			expect(res.status).toBe(200);
+			const body = await res.text();
+			expect(body).toContain('ATTACH;FMTTYPE=application/pdf:https://example.com/slides.pdf');
+		} finally {
+			// Clean up so downstream tests see a deterministic state
+			await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
+		}
+	});
 });
 
 // ─── GET /health ─────────────────────────────────────────────────────────────

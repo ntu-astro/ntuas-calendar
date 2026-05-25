@@ -522,7 +522,8 @@ describe('GET /subscribe', () => {
 			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status) VALUES ('ics-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'ICS Test Event', 'CONFIRMED')",
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		// Explicit wide range so seeded event falls inside the window.
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		expect(body).toContain('BEGIN:VEVENT');
 		expect(body).toContain('SUMMARY:ICS Test Event');
@@ -537,7 +538,7 @@ describe('GET /subscribe', () => {
 			"INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES ('alarm-evt@ntuas.edu', 'DISPLAY', '-PT15M', 'Reminder')",
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		expect(body).toContain('BEGIN:VALARM');
 		expect(body).toContain('TRIGGER:-PT15M');
@@ -550,7 +551,7 @@ describe('GET /subscribe', () => {
 			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('fold-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '${longSummary}', 'CONFIRMED')`,
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		const encoder = new TextEncoder();
 		for (const line of body.split('\r\n')) {
@@ -563,10 +564,30 @@ describe('GET /subscribe', () => {
 			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status, transp) VALUES ('allday-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260301', '20260302', 'All Day Event', 'CONFIRMED', 'TRANSPARENT')",
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		expect(body).toContain('DTSTART;VALUE=DATE:20260301');
 		expect(body).toContain('DTEND;VALUE=DATE:20260302');
+	});
+
+	it('filters by from and to query params', async () => {
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class) VALUES ('ics-old', 'main-cal-001', '20260101T000000Z', '20260101T000000Z', 'Old Event', 'CONFIRMED', 'PUBLIC')",
+		).run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class) VALUES ('ics-now', 'main-cal-001', '20260601T000000Z', '20260601T000000Z', 'Now Event', 'CONFIRMED', 'PUBLIC')",
+		).run();
+
+		const res = await req(`${BASE}/subscribe?from=2026-05-01&to=2026-07-01`);
+		expect(res.status).toBe(200);
+		const body = await res.text();
+		expect(body).toContain('SUMMARY:Now Event');
+		expect(body).not.toContain('SUMMARY:Old Event');
+	});
+
+	it('returns 400 on malformed range params for /subscribe', async () => {
+		const res = await req(`${BASE}/subscribe?from=garbage`);
+		expect(res.status).toBe(400);
 	});
 });
 
@@ -651,7 +672,7 @@ describe('ICS output safety', () => {
 			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('xss-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Event; with, special\\chars', 'CONFIRMED')",
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		// Semicolons, commas, and backslashes must be escaped in ICS values
 		expect(body).toContain('SUMMARY:Event\\; with\\, special\\\\chars');
@@ -662,7 +683,7 @@ describe('ICS output safety', () => {
 			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, description, status) VALUES ('nl-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'NL Event', 'Line1\nLine2', 'CONFIRMED')",
 		).run();
 
-		const res = await req(`${BASE}/subscribe`);
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
 		const body = await res.text();
 		expect(body).toContain('DESCRIPTION:Line1\\nLine2');
 	});

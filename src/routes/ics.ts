@@ -1,33 +1,42 @@
 import { Env, SECURITY_HEADERS } from '../constants';
 import { fold, sanitizeIcsValue } from '../lib/ics';
+import { parseRange } from '../lib/range';
 import type { Calendar, Event, EventAlarm, EventAttachment } from '../types';
 
-export async function handleIcs(
-	url: URL,
-	_request: Request,
-	env: Env,
-): Promise<Response | null> {
+export async function handleIcs(url: URL, _request: Request, env: Env): Promise<Response | null> {
 	if (url.pathname !== '/subscribe' && url.pathname !== '/calendar.ics') {
 		return null;
 	}
+
+	const range = parseRange(url);
+	if ('error' in range) return range.error;
+
+	const fromKey = range.from.replace(/-/g, '');
+	const toKey = range.to.replace(/-/g, '') + 'T235959Z';
 
 	const cal = await env.DB.prepare('SELECT * FROM calendars LIMIT 1').first<Calendar>();
 	if (!cal) return new Response('Calendar not found', { status: 404 });
 
 	const { results: events } = await env.DB.prepare(
-		'SELECT * FROM events WHERE calendar_id = ? ORDER BY dtstart ASC',
+		`SELECT * FROM events
+		 WHERE calendar_id = ? AND dtstart >= ? AND dtstart <= ?
+		 ORDER BY dtstart ASC`,
 	)
-		.bind(cal.id)
+		.bind(cal.id, fromKey, toKey)
 		.all<Event>();
 	const { results: alarms } = await env.DB.prepare(
-		'SELECT ea.* FROM event_alarms ea INNER JOIN events e ON ea.event_uid = e.uid WHERE e.calendar_id = ?',
+		`SELECT ea.* FROM event_alarms ea
+		 INNER JOIN events e ON ea.event_uid = e.uid
+		 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
 	)
-		.bind(cal.id)
+		.bind(cal.id, fromKey, toKey)
 		.all<EventAlarm>();
 	const { results: attachments } = await env.DB.prepare(
-		'SELECT att.* FROM event_attachments att INNER JOIN events e ON att.event_uid = e.uid WHERE e.calendar_id = ?',
+		`SELECT att.* FROM event_attachments att
+		 INNER JOIN events e ON att.event_uid = e.uid
+		 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
 	)
-		.bind(cal.id)
+		.bind(cal.id, fromKey, toKey)
 		.all<EventAttachment>();
 
 	const alarmsByEvent = new Map<string, typeof alarms>();

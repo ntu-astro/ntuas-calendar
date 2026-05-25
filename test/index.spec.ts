@@ -474,6 +474,22 @@ describe('GET /subscribe', () => {
 		expect(body).toContain('DTSTART;VALUE=DATE:20260301');
 		expect(body).toContain('DTEND;VALUE=DATE:20260302');
 	});
+
+	it('returns 404 when no calendar row exists', async () => {
+		// Wipe the seeded calendar for this test only
+		await env.DB.prepare('DELETE FROM calendars').run();
+
+		try {
+			const res = await req(`${BASE}/subscribe`);
+			expect(res.status).toBe(404);
+			expect(await res.text()).toBe('Calendar not found');
+		} finally {
+			// Restore the seed for downstream tests in this file
+			await env.DB.prepare(
+				"INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore')",
+			).run();
+		}
+	});
 });
 
 // ─── GET /health ─────────────────────────────────────────────────────────────

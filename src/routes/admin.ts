@@ -141,7 +141,13 @@ async function handleAdminMutation(request: Request, env: Env, csrfToken: string
 
 		return Response.json({ success: true, message: 'Action completed successfully' });
 	} catch (e: unknown) {
-		console.error('Admin action failed:', e);
+		console.error(
+			JSON.stringify({
+				message: 'Admin action failed',
+				error: e instanceof Error ? e.message : String(e),
+				stack: e instanceof Error ? e.stack : undefined,
+			}),
+		);
 		return Response.json({ success: false, error: 'An error occurred. Please try again.' }, { status: 500 });
 	}
 }

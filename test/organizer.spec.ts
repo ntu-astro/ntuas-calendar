@@ -75,9 +75,7 @@ interface OrganizerRow {
 }
 
 async function readOrganizer(uid: string): Promise<OrganizerRow | null> {
-	return env.DB.prepare('SELECT organizer, organizer_name, organizer_email FROM events WHERE uid = ?')
-		.bind(uid)
-		.first<OrganizerRow>();
+	return env.DB.prepare('SELECT organizer, organizer_name, organizer_email FROM events WHERE uid = ?').bind(uid).first<OrganizerRow>();
 }
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
@@ -90,7 +88,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	await runSQL('DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events; DELETE FROM admin_sessions; DELETE FROM login_attempts;');
+	await runSQL(
+		'DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events; DELETE FROM admin_sessions; DELETE FROM login_attempts;',
+	);
 });
 
 // ─── Add / Update writes split columns ─────────────────────────────────────
@@ -107,7 +107,9 @@ describe('admin add/update writes split organizer columns', () => {
 		});
 		expect(res.status).toBe(200);
 
-		const row = await env.DB.prepare("SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'Talk'").first<OrganizerRow>();
+		const row = await env.DB.prepare(
+			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'Talk'",
+		).first<OrganizerRow>();
 		expect(row).toBeTruthy();
 		expect(row?.organizer).toBeNull(); // legacy column intentionally NULL for new rows
 		expect(row?.organizer_name).toBe('Prof Smith');
@@ -123,7 +125,9 @@ describe('admin add/update writes split organizer columns', () => {
 			organizer_email: 'lone@ntu.edu.sg',
 		});
 
-		const row = await env.DB.prepare("SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'EmailOnly'").first<OrganizerRow>();
+		const row = await env.DB.prepare(
+			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'EmailOnly'",
+		).first<OrganizerRow>();
 		expect(row?.organizer).toBeNull();
 		expect(row?.organizer_name).toBeNull();
 		expect(row?.organizer_email).toBe('lone@ntu.edu.sg');
@@ -137,7 +141,9 @@ describe('admin add/update writes split organizer columns', () => {
 			dtstart: '2026-04-01T10:00',
 		});
 
-		const row = await env.DB.prepare("SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'NoOrganizer'").first<OrganizerRow>();
+		const row = await env.DB.prepare(
+			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'NoOrganizer'",
+		).first<OrganizerRow>();
 		expect(row?.organizer).toBeNull();
 		expect(row?.organizer_name).toBeNull();
 		expect(row?.organizer_email).toBeNull();

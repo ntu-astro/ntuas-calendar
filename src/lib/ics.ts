@@ -17,10 +17,7 @@ export function fold(line: string): string {
 
 	while (encoder.encode(remaining).byteLength > ICS_LINE_FOLD_OCTETS) {
 		let end = remaining.length;
-		while (
-			end > 0 &&
-			encoder.encode(remaining.slice(0, end)).byteLength > ICS_LINE_FOLD_OCTETS
-		) {
+		while (end > 0 && encoder.encode(remaining.slice(0, end)).byteLength > ICS_LINE_FOLD_OCTETS) {
 			end--;
 		}
 		if (end === 0) end = 1; // at least one character per line

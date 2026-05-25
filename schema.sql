@@ -1,3 +1,13 @@
+-- ============================================================================
+-- DEPRECATED REFERENCE FILE — DO NOT EDIT.
+-- Canonical schema lives in migrations/. To make a schema change:
+--   1. Create a new migration:  npx wrangler d1 migrations create calendar_db <name>
+--   2. Write your DDL in the generated migrations/NNNN_*.sql file
+--   3. Apply locally:            npx wrangler d1 migrations apply calendar_db --local
+--   4. Apply to production:      auto-runs in CI on merge to main
+-- This file is retained only for one-shot manual DDL (e.g., sqlite3 inspection).
+-- ============================================================================
+
 DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS admin_sessions;
 DROP TABLE IF EXISTS event_alarms;

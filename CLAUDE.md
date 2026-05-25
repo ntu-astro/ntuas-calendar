@@ -7,6 +7,20 @@
 - Local dev never connects to the remote (production) D1
 - If `.wrangler/state/v3/d1/` is wiped, events will be empty — see README for setup/migration steps
 
+## Schema Changes
+
+The schema is managed by wrangler migrations in `migrations/`. To change the schema:
+
+1. `npx wrangler d1 migrations create calendar_db <descriptive_name>` — creates the next numbered file.
+2. Write idempotent SQL inside the new migration file.
+3. `npx wrangler d1 migrations apply calendar_db --local` — applies locally.
+4. `npm test` — confirm nothing broke.
+5. Push to main — CI applies to production automatically.
+
+See [`migrations/README.md`](../migrations/README.md) for conventions and recovery steps.
+
+The legacy `schema.sql` is retained only as a reference; the canonical source is `migrations/0001_initial.sql`.
+
 ## Testing
 
 Tests use an in-memory D1 — no local or remote database needed:

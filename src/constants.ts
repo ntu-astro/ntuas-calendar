@@ -1,8 +1,3 @@
-export interface Env {
-	DB: D1Database;
-	ADMIN_PASSWORD: string;
-}
-
 export const SESSION_MAX_AGE_SECONDS = 86400;
 export const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 export const MAX_LOGIN_ATTEMPTS = 5;
@@ -17,5 +12,5 @@ export const SECURITY_HEADERS: Record<string, string> = {
 	'X-Frame-Options': 'DENY',
 	'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
 	'Content-Security-Policy':
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
+		"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'",
 };

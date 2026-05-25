@@ -179,6 +179,9 @@ worker-configuration.d.ts
 # macOS metadata
 .DS_Store
 
+# Local D1 export snapshot — regenerable via `npx wrangler d1 export calendar_db --remote --output=./remote_backup.sql`
+remote_backup.sql
+
 # Local Claude Code scratch (worktrees, skill docs)
 .claude/worktrees/
 docs/superpowers/

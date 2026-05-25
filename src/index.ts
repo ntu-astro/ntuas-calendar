@@ -1,4 +1,4 @@
-import { Env, SECURITY_HEADERS } from './constants';
+import { SECURITY_HEADERS } from './constants';
 import { handleHealth } from './routes/health.ts';
 import { handleEvents } from './routes/events.ts';
 import { handleAdmin } from './routes/admin.ts';

@@ -104,7 +104,8 @@ describe('parseAndValidateEventInput', () => {
 			expect(result.input.categories).toBe('ACADEMIC,LECTURE');
 			expect(result.input.class).toBe('PUBLIC');
 			expect(result.input.url).toBe('https://example.com');
-			expect(result.input.organizer).toBe(';CN=Prof Smith:mailto:smith@ntu.edu.sg');
+			expect(result.input.organizerName).toBe('Prof Smith');
+			expect(result.input.organizerEmail).toBe('smith@ntu.edu.sg');
 		}
 	});
 
@@ -125,7 +126,7 @@ describe('parseAndValidateEventInput', () => {
 		}
 	});
 
-	it('prefixes email-only organizer with colon so ICS render is well-formed', () => {
+	it('exposes split organizer fields when only email is provided', () => {
 		const result = parseAndValidateEventInput(
 			form({
 				summary: 'A',
@@ -135,7 +136,23 @@ describe('parseAndValidateEventInput', () => {
 		);
 		expect(result.ok).toBe(true);
 		if (result.ok) {
-			expect(result.input.organizer).toBe(':mailto:smith@ntu.edu.sg');
+			expect(result.input.organizerName).toBeNull();
+			expect(result.input.organizerEmail).toBe('smith@ntu.edu.sg');
+		}
+	});
+
+	it('drops organizer name when email is missing (name without email is meaningless)', () => {
+		const result = parseAndValidateEventInput(
+			form({
+				summary: 'A',
+				dtstart: '2026-06-01T10:00:00Z',
+				organizer_name: 'Prof Smith',
+			}),
+		);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.input.organizerName).toBeNull();
+			expect(result.input.organizerEmail).toBeNull();
 		}
 	});
 

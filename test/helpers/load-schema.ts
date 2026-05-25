@@ -2,6 +2,10 @@
 // so this works inside the Workers runtime where Node's `fs` is unavailable.
 // migrations/0001_initial.sql is the canonical schema source (schema.sql is deprecated).
 import schemaSql from '../../migrations/0001_initial.sql?raw';
+// Migration 0004 adds the split organizer columns. The 0002/0003 migrations
+// only mutate data or drop dead schema objects that 0001 never declares, so
+// they are not needed for tests starting from a clean in-memory DB.
+import splitOrganizerSql from '../../migrations/0004_split_organizer_columns.sql?raw';
 
 /**
  * Load the production schema.sql, rewrite it to be safe for repeated test runs,
@@ -32,11 +36,56 @@ export function loadSchemaStatements(): string[] {
 }
 
 /**
+ * Split a SQL script into statements at top-level `;` only — semicolons inside
+ * single-quoted string literals are kept with the surrounding statement so a
+ * pattern like `WHERE organizer LIKE ';CN=...'` is not severed at the embedded `;`.
+ */
+function splitStatements(sql: string): string[] {
+	const stripped = sql.replace(/--[^\n]*\n/g, '\n');
+	const stmts: string[] = [];
+	let buf = '';
+	let inString = false;
+	for (let i = 0; i < stripped.length; i++) {
+		const ch = stripped[i];
+		if (ch === "'") {
+			// SQLite escapes a literal `'` inside a string by doubling it (`''`).
+			// In both cases we just keep toggling: `''` toggles off then on, which
+			// is the same in-string state as if we hadn't toggled.
+			inString = !inString;
+			buf += ch;
+			continue;
+		}
+		if (ch === ';' && !inString) {
+			const stmt = buf.trim();
+			if (stmt.length > 0) stmts.push(stmt);
+			buf = '';
+			continue;
+		}
+		buf += ch;
+	}
+	const tail = buf.trim();
+	if (tail.length > 0) stmts.push(tail);
+	return stmts;
+}
+
+/**
  * Execute every statement of the production schema against the provided D1.
- * Safe to call multiple times.
+ * Also applies post-initial migrations needed for new columns. Safe to call
+ * multiple times — DDL guarded by IF NOT EXISTS; column adds are wrapped in
+ * try/catch because SQLite ALTER TABLE ADD COLUMN has no IF NOT EXISTS form.
  */
 export async function applySchema(db: D1Database): Promise<void> {
 	for (const stmt of loadSchemaStatements()) {
 		await db.prepare(stmt).run();
+	}
+	for (const stmt of splitStatements(splitOrganizerSql)) {
+		try {
+			await db.prepare(stmt).run();
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : String(e);
+			// Re-applying ADD COLUMN against an already-migrated DB is a no-op
+			// for our purposes; surface anything else.
+			if (!/duplicate column name/i.test(msg)) throw e;
+		}
 	}
 }

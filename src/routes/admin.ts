@@ -1,4 +1,4 @@
-import { Env, SESSION_MAX_AGE_SECONDS, RATE_LIMIT_WINDOW_MS, MAX_LOGIN_ATTEMPTS, SECURITY_HEADERS } from '../constants';
+import { SESSION_MAX_AGE_SECONDS, RATE_LIMIT_WINDOW_MS, MAX_LOGIN_ATTEMPTS, SECURITY_HEADERS } from '../constants';
 import { timingSafeCompare, createSession, validateSession, deleteSession, cleanExpiredSessions, getCookie } from '../lib/auth';
 import { toIcsDate } from '../lib/ics';
 import { parseAndValidateEventInput } from '../lib/validation';
@@ -155,11 +155,14 @@ async function addEvent(formData: FormData, env: Env): Promise<Response | null> 
 	const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
 	const nowIcs = toIcsDate(new Date().toISOString());
 
+	// Legacy `organizer` column is intentionally left NULL on new rows; the split
+	// `organizer_name` / `organizer_email` columns are the source of truth post-0004.
 	await env.DB.prepare(
 		`INSERT INTO events (
 				uid, calendar_id, dtstamp, created, last_modified, dtstart, dtend,
-				summary, description, location, transp, geo, categories, class, status, url, organizer
-			) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				summary, description, location, transp, geo, categories, class, status, url,
+				organizer, organizer_name, organizer_email
+			) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
 	)
 		.bind(
 			uid,
@@ -177,7 +180,8 @@ async function addEvent(formData: FormData, env: Env): Promise<Response | null> 
 			i.class,
 			i.status,
 			i.url,
-			i.organizer,
+			i.organizerName,
+			i.organizerEmail,
 		)
 		.run();
 
@@ -209,10 +213,13 @@ async function updateEvent(formData: FormData, env: Env): Promise<Response | nul
 	const i = result.input;
 	const nowIcs = toIcsDate(new Date().toISOString());
 
+	// Clear the legacy `organizer` column so any pre-0004 prefix-shape value can
+	// not silently re-surface after an edit — split columns are now authoritative.
 	await env.DB.prepare(
 		`UPDATE events
 		 SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?,
-		     transp = ?, categories = ?, class = ?, url = ?, organizer = ?,
+		     transp = ?, categories = ?, class = ?, url = ?,
+		     organizer = NULL, organizer_name = ?, organizer_email = ?,
 		     last_modified = ?, sequence = sequence + 1
 		 WHERE uid = ?`,
 	)
@@ -228,7 +235,8 @@ async function updateEvent(formData: FormData, env: Env): Promise<Response | nul
 			i.categories,
 			i.class,
 			i.url,
-			i.organizer,
+			i.organizerName,
+			i.organizerEmail,
 			nowIcs,
 			uid,
 		)

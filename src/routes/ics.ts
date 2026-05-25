@@ -1,7 +1,31 @@
-import { Env, SECURITY_HEADERS } from '../constants';
-import { fold, sanitizeIcsValue } from '../lib/ics';
+import { SECURITY_HEADERS } from '../constants';
+import { fold, sanitizeIcsValue, sanitizeIcsOrganizerName } from '../lib/ics';
 import { parseRange } from '../lib/range';
 import type { Calendar, Event, EventAlarm, EventAttachment } from '../types';
+
+/**
+ * Build the RFC 5545 ORGANIZER property line from an event row.
+ *
+ * Source of truth post-migration 0004 is the split `organizer_name` /
+ * `organizer_email` columns. The legacy `organizer` column (which stored a
+ * pre-formatted value with a leading `:` or `;` delimiter) is a fallback for
+ * rows that still carry the old shape — defensive only; the 0004 backfill
+ * should have populated the new columns for every legacy row.
+ *
+ * Returns null when there is no organizer to emit.
+ */
+function renderOrganizerLine(event: Event): string | null {
+	if (event.organizer_email) {
+		if (event.organizer_name) {
+			return `ORGANIZER;CN=${sanitizeIcsOrganizerName(event.organizer_name)}:mailto:${event.organizer_email}`;
+		}
+		return `ORGANIZER:mailto:${event.organizer_email}`;
+	}
+	if (event.organizer) {
+		return `ORGANIZER${event.organizer}`;
+	}
+	return null;
+}
 
 export async function handleIcs(url: URL, _request: Request, env: Env): Promise<Response | null> {
 	if (url.pathname !== '/subscribe' && url.pathname !== '/calendar.ics') {
@@ -24,20 +48,20 @@ export async function handleIcs(url: URL, _request: Request, env: Env): Promise<
 	)
 		.bind(cal.id, fromKey, toKey)
 		.all<Event>();
-	const { results: alarms } = await env.DB.prepare(
-		`SELECT ea.* FROM event_alarms ea
-		 INNER JOIN events e ON ea.event_uid = e.uid
-		 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
-	)
-		.bind(cal.id, fromKey, toKey)
-		.all<EventAlarm>();
-	const { results: attachments } = await env.DB.prepare(
-		`SELECT att.* FROM event_attachments att
-		 INNER JOIN events e ON att.event_uid = e.uid
-		 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
-	)
-		.bind(cal.id, fromKey, toKey)
-		.all<EventAttachment>();
+	const [alarmsRes, attachmentsRes] = await env.DB.batch<EventAlarm | EventAttachment>([
+		env.DB.prepare(
+			`SELECT ea.* FROM event_alarms ea
+			 INNER JOIN events e ON ea.event_uid = e.uid
+			 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
+		).bind(cal.id, fromKey, toKey),
+		env.DB.prepare(
+			`SELECT att.* FROM event_attachments att
+			 INNER JOIN events e ON att.event_uid = e.uid
+			 WHERE e.calendar_id = ? AND e.dtstart >= ? AND e.dtstart <= ?`,
+		).bind(cal.id, fromKey, toKey),
+	]);
+	const alarms = alarmsRes.results as EventAlarm[];
+	const attachments = attachmentsRes.results as EventAttachment[];
 
 	const alarmsByEvent = new Map<string, typeof alarms>();
 	for (const alarm of alarms) {
@@ -81,7 +105,8 @@ export async function handleIcs(url: URL, _request: Request, env: Env): Promise<
 		if (event.geo) icsLines.push(`GEO:${event.geo}`);
 		if (event.categories) icsLines.push(`CATEGORIES:${sanitizeIcsValue(event.categories)}`);
 		if (event.url) icsLines.push(`URL:${event.url}`);
-		if (event.organizer) icsLines.push(`ORGANIZER${event.organizer}`);
+		const organizerLine = renderOrganizerLine(event);
+		if (organizerLine) icsLines.push(organizerLine);
 
 		icsLines.push(`CLASS:${event.class || 'PUBLIC'}`);
 		icsLines.push(`STATUS:${event.status || 'CONFIRMED'}`);

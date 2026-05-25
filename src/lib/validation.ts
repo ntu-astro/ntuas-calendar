@@ -1,5 +1,5 @@
 import { MAX_SUMMARY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_LOCATION_LENGTH, VALID_STATUSES } from '../constants';
-import { toIcsDate, toIcsDateOnly, sanitizeIcsOrganizerName } from './ics';
+import { toIcsDate, toIcsDateOnly } from './ics';
 
 export interface EventInput {
 	isAllDay: boolean;
@@ -14,7 +14,8 @@ export interface EventInput {
 	class: string;
 	status: string;
 	url: string | null;
-	organizer: string | null;
+	organizerName: string | null;
+	organizerEmail: string | null;
 	attachUri: string | null;
 	attachFmttype: string | null;
 	alarmAction: string | null;
@@ -100,20 +101,10 @@ export function parseAndValidateEventInput(formData: FormData): ValidationResult
 		return fail(400, 'Invalid status value.');
 	}
 
-	const orgName = nullable(formData.get('organizer_name'));
-	const orgEmail = nullable(formData.get('organizer_email'));
-	if (orgEmail && !EMAIL_RE.test(orgEmail)) {
+	const organizerName = nullable(formData.get('organizer_name'));
+	const organizerEmail = nullable(formData.get('organizer_email'));
+	if (organizerEmail && !EMAIL_RE.test(organizerEmail)) {
 		return fail(400, 'Invalid organizer email format.');
-	}
-
-	// Organizer is stored with a leading ICS delimiter (`;` for parameters, `:` for the value)
-	// so the ICS renderer can emit `ORGANIZER${organizer}` verbatim and produce a well-formed
-	// RFC 5545 line in both cases.
-	let organizer: string | null = null;
-	if (orgName && orgEmail) {
-		organizer = `;CN=${sanitizeIcsOrganizerName(orgName)}:mailto:${orgEmail}`;
-	} else if (orgEmail) {
-		organizer = `:mailto:${orgEmail}`;
 	}
 
 	const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string | null) || 'OPAQUE';
@@ -136,7 +127,8 @@ export function parseAndValidateEventInput(formData: FormData): ValidationResult
 			class: (formData.get('class') as string | null) || 'PUBLIC',
 			status,
 			url: nullable(formData.get('url')),
-			organizer,
+			organizerName: organizerName && organizerEmail ? organizerName : null,
+			organizerEmail,
 			attachUri: nullable(formData.get('attach_uri')),
 			attachFmttype: nullable(formData.get('attach_fmttype')),
 			alarmAction: (formData.get('alarm_action') as string | null) || 'DISPLAY',

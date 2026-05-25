@@ -40,16 +40,14 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    *Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section.*
 
 4. **Initialize Database Schema:**
-   Apply the provided schema (`schema.sql`) to your local and/or production databases. The schema includes all tables and indexes.
-
-   > ⚠️ `schema.sql` starts with `DROP TABLE IF EXISTS` statements — **do not run it against a production database that already has data**. To add indexes only to an existing database, run the `CREATE INDEX` statements individually with `--remote`.
+   The schema is managed by wrangler migrations in [`migrations/`](./migrations/) — see [`migrations/README.md`](./migrations/README.md) for conventions.
 
    ```bash
-   # For local development (safe — creates a fresh local SQLite)
-   npx wrangler d1 execute calendar_db --local --file=./schema.sql
+   # Apply all pending migrations locally
+   npx wrangler d1 migrations apply calendar_db --local
 
-   # For production (only for initial setup, not for existing databases with data)
-   npx wrangler d1 execute calendar_db --remote --file=./schema.sql
+   # Apply to production (CI does this on push to main)
+   npx wrangler d1 migrations apply calendar_db --remote
    ```
 
    Then seed the required calendar record and optional sample events:
@@ -68,13 +66,13 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
 
    **Alternative: clone production data to local** (instead of using seed.sql):
    ```bash
-   # Export remote database (self-contained — includes CREATE TABLE statements)
+   # Export remote database into a gitignored snapshot file
    npx wrangler d1 export calendar_db --remote --output=./remote_backup.sql
 
    # Wipe local state (required — the export has its own CREATE TABLE statements)
    rm -rf .wrangler/state/v3/d1
 
-   # Import directly — do NOT run schema.sql first
+   # Import directly — do NOT run migrations first
    npx wrangler d1 execute calendar_db --local --file=./remote_backup.sql
    ```
 
@@ -120,7 +118,7 @@ npm test
 ```
 
 The test suite covers:
-- `GET /api/events` — response format, headers (Content-Type, Cache-Control, CORS)
+- `GET /api/events` — response format, headers (Content-Type, Cache-Control, CORS), `?from=&to=` range filtering and validation
 - `POST /admin/login` — correct/wrong password, rate limiting (429 after 5 failures), secure cookie attributes
 - `GET /admin` — unauthenticated redirect, authenticated dashboard, security headers
 - `POST /admin` — CSRF validation, input validation (add & update), event CRUD operations
@@ -142,7 +140,7 @@ npm run deploy
 - **`GET /subscribe` or `GET /calendar.ics`**: The main ICS feed URL. Add this URL to Apple Calendar, Google Calendar, or other clients to subscribe to the events.
 - **`GET /admin`**: The admin dashboard UI to manage events. Requires the admin session login using the environment secret password.
 - **`POST /admin`**: API to programmatically insert, update, or delete an event (requires authentication).
-- **`GET /api/events`**: Returns a JSON array of all current calendar events in the database.
+- **`GET /api/events`**: Returns a JSON array of calendar events within a date range. Accepts optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` query parameters (both must be valid ISO dates, `from` must be on or before `to`). Defaults: 30 days back, 180 days forward. Same range filtering applies to `/subscribe` and `/calendar.ics`.
 
 ## User Guide
 

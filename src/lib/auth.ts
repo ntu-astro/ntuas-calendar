@@ -14,65 +14,42 @@ export function timingSafeCompare(input: string, expected: string): boolean {
 	const b = new Uint8Array(maxLen);
 	a.set(inputBytes);
 	b.set(expectedBytes);
-	return (
-		inputBytes.byteLength === expectedBytes.byteLength &&
-		crypto.subtle.timingSafeEqual(a, b)
-	);
+	const bytesEqual = crypto.subtle.timingSafeEqual(a, b);
+	const lengthsEqual = inputBytes.byteLength === expectedBytes.byteLength;
+	return bytesEqual && lengthsEqual;
 }
 
-export async function createSession(
-	db: D1Database,
-): Promise<{ token: string; csrfToken: string }> {
+export async function createSession(db: D1Database): Promise<{ token: string; csrfToken: string }> {
 	const token = generateRandomToken();
 	const csrfToken = generateRandomToken();
 	const now = new Date();
 	const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000);
 	await db
-		.prepare(
-			'INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)',
-		)
+		.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
 		.bind(token, csrfToken, now.toISOString(), expiresAt.toISOString())
 		.run();
 	return { token, csrfToken };
 }
 
-export async function validateSession(
-	db: D1Database,
-	token: string | null,
-): Promise<{ valid: boolean; csrfToken: string | null }> {
+export async function validateSession(db: D1Database, token: string | null): Promise<{ valid: boolean; csrfToken: string | null }> {
 	if (!token) return { valid: false, csrfToken: null };
-	const session = await db
-		.prepare('SELECT * FROM admin_sessions WHERE token = ?')
-		.bind(token)
-		.first<AdminSession>();
+	const session = await db.prepare('SELECT * FROM admin_sessions WHERE token = ?').bind(token).first<AdminSession>();
 	if (!session) return { valid: false, csrfToken: null };
 	if (new Date(session.expires_at) < new Date()) {
-		await db
-			.prepare('DELETE FROM admin_sessions WHERE token = ?')
-			.bind(token)
-			.run();
+		await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
 		return { valid: false, csrfToken: null };
 	}
 	return { valid: true, csrfToken: session.csrf_token };
 }
 
-export async function deleteSession(
-	db: D1Database,
-	token: string | null,
-): Promise<void> {
+export async function deleteSession(db: D1Database, token: string | null): Promise<void> {
 	if (token) {
-		await db
-			.prepare('DELETE FROM admin_sessions WHERE token = ?')
-			.bind(token)
-			.run();
+		await db.prepare('DELETE FROM admin_sessions WHERE token = ?').bind(token).run();
 	}
 }
 
 export async function cleanExpiredSessions(db: D1Database): Promise<void> {
-	await db
-		.prepare('DELETE FROM admin_sessions WHERE expires_at < ?')
-		.bind(new Date().toISOString())
-		.run();
+	await db.prepare('DELETE FROM admin_sessions WHERE expires_at < ?').bind(new Date().toISOString()).run();
 }
 
 export function getCookie(request: Request, name: string): string | null {

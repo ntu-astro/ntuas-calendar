@@ -13,6 +13,8 @@ export default defineConfig({
 		}),
 	],
 	test: {
+		// Playwright specs in e2e/ run via `npm run test:e2e`, not vitest.
+		exclude: ['e2e/**', 'node_modules/**', '.wrangler/**', 'dist/**'],
 		// Run spec files sequentially. @cloudflare/vitest-pool-workers crashes a miniflare
 		// WebSocket worker during concurrent teardown. See CLAUDE.md > Testing.
 		fileParallelism: false,

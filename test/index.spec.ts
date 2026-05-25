@@ -1,77 +1,17 @@
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import worker from '../src';
+import { applySchema } from './helpers/load-schema';
 
 const BASE = 'http://localhost';
 const ADMIN_PASS = 'test-password-123';
 
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS calendars (
-  id TEXT PRIMARY KEY,
-  prodid TEXT NOT NULL DEFAULT '-//NTUAS//MyCalendar//EN',
-  version TEXT NOT NULL DEFAULT '2.0',
-  calscale TEXT DEFAULT 'GREGORIAN',
-  x_wr_calname TEXT,
-  x_wr_timezone TEXT
-);
-CREATE TABLE IF NOT EXISTS events (
-  uid TEXT PRIMARY KEY,
-  calendar_id TEXT NOT NULL,
-  dtstamp TEXT NOT NULL,
-  dtstart TEXT NOT NULL,
-  dtend TEXT,
-  duration TEXT,
-  transp TEXT DEFAULT 'OPAQUE',
-  summary TEXT,
-  description TEXT,
-  location TEXT,
-  geo TEXT,
-  categories TEXT,
-  class TEXT DEFAULT 'PUBLIC',
-  status TEXT DEFAULT 'CONFIRMED',
-  url TEXT,
-  organizer TEXT,
-  sequence INTEGER DEFAULT 0,
-  created TEXT,
-  last_modified TEXT,
-  FOREIGN KEY (calendar_id) REFERENCES calendars(id) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS event_attachments (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  event_uid TEXT NOT NULL,
-  uri TEXT,
-  binary_data BLOB,
-  fmttype TEXT,
-  FOREIGN KEY (event_uid) REFERENCES events(uid) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS event_alarms (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  event_uid TEXT NOT NULL,
-  action TEXT DEFAULT 'DISPLAY',
-  trigger TEXT NOT NULL,
-  description TEXT,
-  summary TEXT,
-  duration TEXT,
-  repeat INTEGER,
-  FOREIGN KEY (event_uid) REFERENCES events(uid) ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS admin_sessions (
-  token TEXT PRIMARY KEY,
-  csrf_token TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS login_attempts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ip TEXT NOT NULL,
-  attempted_at TEXT NOT NULL,
-  success INTEGER NOT NULL DEFAULT 0
-);
-`;
-
 // Run one or more semicolon-separated SQL statements against the test D1 binding
 async function runSQL(sql: string): Promise<void> {
-	const stmts = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+	const stmts = sql
+		.split(';')
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
 	for (const stmt of stmts) {
 		await env.DB.prepare(stmt).run();
 	}
@@ -104,11 +44,7 @@ async function login(): Promise<{ cookie: string; csrfToken: string }> {
 	return { cookie: `admin_session=${token}`, csrfToken };
 }
 
-async function adminPost(
-	cookie: string,
-	csrfToken: string,
-	fields: Record<string, string>,
-): Promise<Response> {
+async function adminPost(cookie: string, csrfToken: string, fields: Record<string, string>): Promise<Response> {
 	const body = new FormData();
 	body.append('_csrf', csrfToken);
 	for (const [k, v] of Object.entries(fields)) body.append(k, v);
@@ -118,12 +54,10 @@ async function adminPost(
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
 beforeAll(async () => {
-	await runSQL(SCHEMA_SQL);
-	await env.DB
-		.prepare(
-			"INSERT OR IGNORE INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore')",
-		)
-		.run();
+	await applySchema(env.DB);
+	await env.DB.prepare(
+		"INSERT OR IGNORE INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore')",
+	).run();
 });
 
 // ─── GET /api/events ─────────────────────────────────────────────────────────
@@ -136,7 +70,7 @@ describe('GET /api/events', () => {
 	it('returns 200 with empty array when no events', async () => {
 		const res = await req(`${BASE}/api/events`);
 		expect(res.status).toBe(200);
-		const data = await res.json() as unknown[];
+		const data = (await res.json()) as unknown[];
 		expect(Array.isArray(data)).toBe(true);
 		expect(data).toHaveLength(0);
 	});
@@ -149,14 +83,12 @@ describe('GET /api/events', () => {
 	});
 
 	it('returns events when they exist', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status) VALUES ('evt-1@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'Test Event', 'CONFIRMED')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status) VALUES ('evt-1@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'Test Event', 'CONFIRMED')",
+		).run();
 
 		const res = await req(`${BASE}/api/events`);
-		const data = await res.json() as { summary: string }[];
+		const data = (await res.json()) as { summary: string }[];
 		expect(data).toHaveLength(1);
 		expect(data[0].summary).toBe('Test Event');
 	});
@@ -261,7 +193,7 @@ describe('POST /admin — add event', () => {
 			dtstart: '2026-03-01T10:00',
 		});
 		expect(res.status).toBe(400);
-		const data = await res.json() as { error: string };
+		const data = (await res.json()) as { error: string };
 		expect(data.error).toContain('title');
 	});
 
@@ -307,7 +239,7 @@ describe('POST /admin — add event', () => {
 			status: 'CONFIRMED',
 		});
 		expect(res.status).toBe(200);
-		const data = await res.json() as { success: boolean };
+		const data = (await res.json()) as { success: boolean };
 		expect(data.success).toBe(true);
 
 		const { results } = await env.DB.prepare("SELECT * FROM events WHERE summary = 'New Test Event'").all();
@@ -324,9 +256,7 @@ describe('POST /admin — add event', () => {
 			status: 'CONFIRMED',
 		});
 
-		const row = await env.DB
-			.prepare("SELECT dtstart FROM events WHERE summary = 'All Day Event'")
-			.first<{ dtstart: string }>();
+		const row = await env.DB.prepare("SELECT dtstart FROM events WHERE summary = 'All Day Event'").first<{ dtstart: string }>();
 		expect(row?.dtstart).not.toContain('T');
 		expect(row?.dtstart).toMatch(/^\d{8}$/);
 	});
@@ -339,12 +269,10 @@ describe('POST /admin — update event', () => {
 
 	beforeEach(async () => {
 		await runSQL('DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events; DELETE FROM admin_sessions;');
-		await env.DB
-			.prepare(
-				`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status)
+		await env.DB.prepare(
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status)
          VALUES ('${TEST_UID}', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'Original Title', 'CONFIRMED')`,
-			)
-			.run();
+		).run();
 	});
 
 	it('returns 400 when summary is missing', async () => {
@@ -380,9 +308,11 @@ describe('POST /admin — update event', () => {
 		});
 		expect(res.status).toBe(200);
 
-		const row = await env.DB
-			.prepare(`SELECT summary, status, sequence FROM events WHERE uid = '${TEST_UID}'`)
-			.first<{ summary: string; status: string; sequence: number }>();
+		const row = await env.DB.prepare(`SELECT summary, status, sequence FROM events WHERE uid = '${TEST_UID}'`).first<{
+			summary: string;
+			status: string;
+			sequence: number;
+		}>();
 		expect(row?.summary).toBe('Updated Title');
 		expect(row?.status).toBe('TENTATIVE');
 		expect(row?.sequence).toBe(1);
@@ -396,12 +326,10 @@ describe('POST /admin — delete event', () => {
 
 	beforeEach(async () => {
 		await runSQL('DELETE FROM event_alarms; DELETE FROM event_attachments; DELETE FROM events; DELETE FROM admin_sessions;');
-		await env.DB
-			.prepare(
-				`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status)
+		await env.DB.prepare(
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status)
          VALUES ('${TEST_UID}', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'To Delete', 'CONFIRMED')`,
-			)
-			.run();
+		).run();
 	});
 
 	it('returns 401 on wrong password', async () => {
@@ -423,9 +351,7 @@ describe('POST /admin — delete event', () => {
 		});
 		expect(res.status).toBe(200);
 
-		const row = await env.DB
-			.prepare(`SELECT uid FROM events WHERE uid = '${TEST_UID}'`)
-			.first();
+		const row = await env.DB.prepare(`SELECT uid FROM events WHERE uid = '${TEST_UID}'`).first();
 		expect(row).toBeNull();
 	});
 });
@@ -498,11 +424,9 @@ describe('GET /subscribe', () => {
 	});
 
 	it('includes VEVENT for each event', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status) VALUES ('ics-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'ICS Test Event', 'CONFIRMED')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status) VALUES ('ics-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'ICS Test Event', 'CONFIRMED')",
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
@@ -512,16 +436,12 @@ describe('GET /subscribe', () => {
 	});
 
 	it('includes VALARM when alarm exists for event', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('alarm-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Alarm Event', 'CONFIRMED')",
-			)
-			.run();
-		await env.DB
-			.prepare(
-				"INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES ('alarm-evt@ntuas.edu', 'DISPLAY', '-PT15M', 'Reminder')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('alarm-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Alarm Event', 'CONFIRMED')",
+		).run();
+		await env.DB.prepare(
+			"INSERT INTO event_alarms (event_uid, action, trigger, description) VALUES ('alarm-evt@ntuas.edu', 'DISPLAY', '-PT15M', 'Reminder')",
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
@@ -532,11 +452,9 @@ describe('GET /subscribe', () => {
 
 	it('folds lines at 75 octets per RFC 5545', async () => {
 		const longSummary = 'A'.repeat(200);
-		await env.DB
-			.prepare(
-				`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('fold-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '${longSummary}', 'CONFIRMED')`,
-			)
-			.run();
+		await env.DB.prepare(
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('fold-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '${longSummary}', 'CONFIRMED')`,
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
@@ -547,16 +465,54 @@ describe('GET /subscribe', () => {
 	});
 
 	it('uses VALUE=DATE format for all-day events', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status, transp) VALUES ('allday-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260301', '20260302', 'All Day Event', 'CONFIRMED', 'TRANSPARENT')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, status, transp) VALUES ('allday-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260301', '20260302', 'All Day Event', 'CONFIRMED', 'TRANSPARENT')",
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
 		expect(body).toContain('DTSTART;VALUE=DATE:20260301');
 		expect(body).toContain('DTEND;VALUE=DATE:20260302');
+	});
+
+	it('returns 404 when no calendar row exists', async () => {
+		// Wipe the seeded calendar for this test only
+		await env.DB.prepare('DELETE FROM calendars').run();
+
+		try {
+			const res = await req(`${BASE}/subscribe`);
+			expect(res.status).toBe(404);
+			expect(await res.text()).toBe('Calendar not found');
+		} finally {
+			// Restore the seed for downstream tests in this file
+			await env.DB.prepare(
+				"INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore')",
+			).run();
+		}
+	});
+
+	it('includes ATTACH lines when event has attachments', async () => {
+		const uid = 'event-attach-test-uid';
+		const dtstamp = '20260524T120000Z';
+		const dtstart = '20260601T100000Z';
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class) VALUES (?, 'main-cal-001', ?, ?, 'Event With Attachment', 'CONFIRMED', 'PUBLIC')",
+		)
+			.bind(uid, dtstamp, dtstart)
+			.run();
+		await env.DB.prepare('INSERT INTO event_attachments (event_uid, uri, fmttype) VALUES (?, ?, ?)')
+			.bind(uid, 'https://example.com/slides.pdf', 'application/pdf')
+			.run();
+
+		try {
+			const res = await req(`${BASE}/subscribe`);
+			expect(res.status).toBe(200);
+			const body = await res.text();
+			expect(body).toContain('ATTACH;FMTTYPE=application/pdf:https://example.com/slides.pdf');
+		} finally {
+			// Clean up so downstream tests see a deterministic state
+			await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
+		}
 	});
 });
 
@@ -566,7 +522,7 @@ describe('GET /health', () => {
 	it('returns 200 with ok status', async () => {
 		const res = await req(`${BASE}/health`);
 		expect(res.status).toBe(200);
-		const data = await res.json() as { status: string };
+		const data = (await res.json()) as { status: string };
 		expect(data.status).toBe('ok');
 	});
 });
@@ -599,8 +555,7 @@ describe('Session expiry', () => {
 		// Insert an already-expired session directly into the DB
 		const expiredToken = 'expired-token-12345';
 		const past = new Date(Date.now() - 1000).toISOString();
-		await env.DB
-			.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+		await env.DB.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
 			.bind(expiredToken, 'some-csrf', past, past)
 			.run();
 
@@ -617,8 +572,7 @@ describe('Session expiry', () => {
 	it('cleans up expired session from DB after rejection', async () => {
 		const expiredToken = 'expired-cleanup-token';
 		const past = new Date(Date.now() - 1000).toISOString();
-		await env.DB
-			.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
+		await env.DB.prepare('INSERT INTO admin_sessions (token, csrf_token, created_at, expires_at) VALUES (?, ?, ?, ?)')
 			.bind(expiredToken, 'some-csrf', past, past)
 			.run();
 
@@ -626,10 +580,7 @@ describe('Session expiry', () => {
 			headers: { Cookie: `admin_session=${expiredToken}` },
 		});
 
-		const row = await env.DB
-			.prepare('SELECT token FROM admin_sessions WHERE token = ?')
-			.bind(expiredToken)
-			.first();
+		const row = await env.DB.prepare('SELECT token FROM admin_sessions WHERE token = ?').bind(expiredToken).first();
 		expect(row).toBeNull();
 	});
 });
@@ -642,11 +593,9 @@ describe('ICS output safety', () => {
 	});
 
 	it('escapes special chars in SUMMARY per RFC 5545', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('xss-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Event; with, special\\chars', 'CONFIRMED')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('xss-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Event; with, special\\chars', 'CONFIRMED')",
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
@@ -655,11 +604,9 @@ describe('ICS output safety', () => {
 	});
 
 	it('escapes newlines in DESCRIPTION per RFC 5545', async () => {
-		await env.DB
-			.prepare(
-				"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, description, status) VALUES ('nl-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'NL Event', 'Line1\nLine2', 'CONFIRMED')",
-			)
-			.run();
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, description, status) VALUES ('nl-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'NL Event', 'Line1\nLine2', 'CONFIRMED')",
+		).run();
 
 		const res = await req(`${BASE}/subscribe`);
 		const body = await res.text();
@@ -683,7 +630,7 @@ describe('POST /admin — input validation edge cases', () => {
 			description: 'x'.repeat(5001),
 		});
 		expect(res.status).toBe(400);
-		const data = await res.json() as { error: string };
+		const data = (await res.json()) as { error: string };
 		expect(data.error).toContain('5000');
 	});
 
@@ -696,17 +643,15 @@ describe('POST /admin — input validation edge cases', () => {
 			location: 'x'.repeat(501),
 		});
 		expect(res.status).toBe(400);
-		const data = await res.json() as { error: string };
+		const data = (await res.json()) as { error: string };
 		expect(data.error).toContain('500');
 	});
 
 	it('returns 400 when update location exceeds 500 chars', async () => {
 		const uid = 'evt-validation@ntuas.edu';
-		await env.DB
-			.prepare(
-				`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('${uid}', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Original', 'CONFIRMED')`,
-			)
-			.run();
+		await env.DB.prepare(
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status) VALUES ('${uid}', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'Original', 'CONFIRMED')`,
+		).run();
 		const { cookie, csrfToken } = await login();
 		const res = await adminPost(cookie, csrfToken, {
 			action: 'update',

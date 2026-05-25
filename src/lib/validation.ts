@@ -1,9 +1,4 @@
-import {
-	MAX_SUMMARY_LENGTH,
-	MAX_DESCRIPTION_LENGTH,
-	MAX_LOCATION_LENGTH,
-	VALID_STATUSES,
-} from '../constants';
+import { MAX_SUMMARY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_LOCATION_LENGTH, VALID_STATUSES } from '../constants';
 import { toIcsDate, toIcsDateOnly, sanitizeIcsOrganizerName } from './ics';
 
 export interface EventInput {
@@ -32,9 +27,7 @@ export interface ValidationError {
 	body: { success: false; error: string };
 }
 
-export type ValidationResult =
-	| { ok: true; input: EventInput }
-	| { ok: false; error: ValidationError };
+export type ValidationResult = { ok: true; input: EventInput } | { ok: false; error: ValidationError };
 
 const ALARM_TRIGGER_MAP: Record<string, string> = {
 	'At time of event': '-PT0M',
@@ -55,7 +48,7 @@ function fail(status: number, error: string): ValidationResult {
 	return { ok: false, error: { status, body: { success: false, error } } };
 }
 
-function nullable(value: FormDataEntryValue | null): string | null {
+function nullable(value: File | string | null): string | null {
 	if (value === null) return null;
 	const s = String(value);
 	return s.length === 0 ? null : s;
@@ -120,14 +113,10 @@ export function parseAndValidateEventInput(formData: FormData): ValidationResult
 		organizer = `mailto:${orgEmail}`;
 	}
 
-	const transp = isAllDay
-		? 'TRANSPARENT'
-		: (formData.get('transp') as string | null) || 'OPAQUE';
+	const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string | null) || 'OPAQUE';
 
 	const rawAlarmTrigger = nullable(formData.get('alarm_trigger'));
-	const alarmTrigger = rawAlarmTrigger
-		? ALARM_TRIGGER_MAP[rawAlarmTrigger] ?? rawAlarmTrigger
-		: null;
+	const alarmTrigger = rawAlarmTrigger ? (ALARM_TRIGGER_MAP[rawAlarmTrigger] ?? rawAlarmTrigger) : null;
 
 	return {
 		ok: true,

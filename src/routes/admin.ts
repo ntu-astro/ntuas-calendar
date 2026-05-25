@@ -1,16 +1,6 @@
-import {
-	Env,
-	SESSION_MAX_AGE_SECONDS,
-	RATE_LIMIT_WINDOW_MS,
-	MAX_LOGIN_ATTEMPTS,
-	MAX_SUMMARY_LENGTH,
-	MAX_DESCRIPTION_LENGTH,
-	MAX_LOCATION_LENGTH,
-	VALID_STATUSES,
-	SECURITY_HEADERS,
-} from '../constants';
+import { Env, SESSION_MAX_AGE_SECONDS, RATE_LIMIT_WINDOW_MS, MAX_LOGIN_ATTEMPTS, SECURITY_HEADERS } from '../constants';
 import { timingSafeCompare, createSession, validateSession, deleteSession, cleanExpiredSessions, getCookie } from '../lib/auth';
-import { toIcsDate, toIcsDateOnly } from '../lib/ics';
+import { toIcsDate } from '../lib/ics';
 import { parseAndValidateEventInput } from '../lib/validation';
 import { ADMIN_HTML } from '../templates/admin.html.ts';
 import { LOGIN_HTML } from '../templates/login.html.ts';
@@ -208,61 +198,40 @@ async function addEvent(formData: FormData, env: Env): Promise<Response | null> 
 
 async function updateEvent(formData: FormData, env: Env): Promise<Response | null> {
 	const uid = formData.get('uid') as string;
-	const summary = formData.get('summary') as string;
-	const isAllDay = formData.get('is_all_day') === '1';
-
-	if (!summary || summary.trim().length === 0) {
-		return Response.json({ success: false, error: 'Event title is required.' }, { status: 400 });
-	}
-	if (summary.length > MAX_SUMMARY_LENGTH) {
-		return Response.json({ success: false, error: `Event title must be ${MAX_SUMMARY_LENGTH} characters or less.` }, { status: 400 });
+	if (!uid) {
+		return Response.json({ success: false, error: 'uid is required for update.' }, { status: 400 });
 	}
 
-	let dtstart: string | null;
-	let dtend: string | null;
-
-	if (isAllDay) {
-		dtstart = toIcsDateOnly(formData.get('dtstart') as string);
-		dtend = toIcsDateOnly(formData.get('dtend') as string);
-		if (dtstart && !dtend) {
-			const d = new Date(formData.get('dtstart') as string);
-			d.setUTCDate(d.getUTCDate() + 1);
-			dtend = toIcsDateOnly(d.toISOString());
-		}
-	} else {
-		dtstart = toIcsDate(formData.get('dtstart') as string);
-		dtend = toIcsDate(formData.get('dtend') as string);
+	const result = parseAndValidateEventInput(formData);
+	if (!result.ok) {
+		return Response.json(result.error.body, { status: result.error.status });
 	}
-
-	if (!dtstart) {
-		return Response.json({ success: false, error: 'Start date is required.' }, { status: 400 });
-	}
-
-	const status = (formData.get('status') as string) || 'CONFIRMED';
-	if (!(VALID_STATUSES as readonly string[]).includes(status)) {
-		return Response.json({ success: false, error: 'Invalid status value.' }, { status: 400 });
-	}
-
-	const location = (formData.get('location') as string) || null;
-	if (location && location.length > MAX_LOCATION_LENGTH) {
-		return Response.json({ success: false, error: `Location must be ${MAX_LOCATION_LENGTH} characters or less.` }, { status: 400 });
-	}
-
-	const description = (formData.get('description') as string) || null;
-	if (description && description.length > MAX_DESCRIPTION_LENGTH) {
-		return Response.json({ success: false, error: `Description must be ${MAX_DESCRIPTION_LENGTH} characters or less.` }, { status: 400 });
-	}
-
-	const geo = (formData.get('geo') as string) || null;
-	const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string) || 'OPAQUE';
+	const i = result.input;
 	const nowIcs = toIcsDate(new Date().toISOString());
 
 	await env.DB.prepare(
 		`UPDATE events
-			SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?, transp = ?, last_modified = ?, sequence = sequence + 1
-			WHERE uid = ?`,
+		 SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?,
+		     transp = ?, categories = ?, class = ?, url = ?, organizer = ?,
+		     last_modified = ?, sequence = sequence + 1
+		 WHERE uid = ?`,
 	)
-		.bind(summary, dtstart, dtend, status, location, geo, description, transp, nowIcs, uid)
+		.bind(
+			i.summary,
+			i.dtstart,
+			i.dtend,
+			i.status,
+			i.location,
+			i.geo,
+			i.description,
+			i.transp,
+			i.categories,
+			i.class,
+			i.url,
+			i.organizer,
+			nowIcs,
+			uid,
+		)
 		.run();
 
 	return null;

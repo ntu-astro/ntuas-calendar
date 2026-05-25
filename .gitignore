@@ -175,3 +175,10 @@ e2e/**/*-snapshots/*-actual.png
 
 # Wrangler-generated types — regenerable via `npm run cf-typegen`
 worker-configuration.d.ts
+
+# macOS metadata
+.DS_Store
+
+# Local Claude Code scratch (worktrees, skill docs)
+.claude/worktrees/
+docs/superpowers/

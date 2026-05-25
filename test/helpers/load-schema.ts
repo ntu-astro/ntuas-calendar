@@ -1,9 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const SCHEMA_PATH = resolve(__dirname, '..', '..', 'schema.sql');
+// Vite's `?raw` import returns the file contents as a string at build time,
+// so this works inside the Workers runtime where Node's `fs` is unavailable.
+import schemaSql from '../../schema.sql?raw';
 
 /**
  * Load the production schema.sql, rewrite it to be safe for repeated test runs,
@@ -16,19 +13,21 @@ const SCHEMA_PATH = resolve(__dirname, '..', '..', 'schema.sql');
  *     this twice (e.g., across describe blocks) is a no-op.
  *   - Replace `CREATE INDEX idx_x` with `CREATE INDEX IF NOT EXISTS idx_x` for
  *     the same reason.
+ *   - Strip SQL comments so each statement is a single CREATE.
  */
 export function loadSchemaStatements(): string[] {
-	const raw = readFileSync(SCHEMA_PATH, 'utf8');
-
-	const rewritten = raw
+	const rewritten = schemaSql
 		.replace(/^\s*DROP TABLE IF EXISTS [^;]+;\s*$/gm, '')
 		.replace(/CREATE TABLE (?!IF NOT EXISTS)(\w+)/g, 'CREATE TABLE IF NOT EXISTS $1')
-		.replace(/CREATE INDEX (?!IF NOT EXISTS)(\w+)/g, 'CREATE INDEX IF NOT EXISTS $1');
+		.replace(/CREATE INDEX (?!IF NOT EXISTS)(\w+)/g, 'CREATE INDEX IF NOT EXISTS $1')
+		// Strip `-- …` comments (whole-line and trailing) so the parser doesn't
+		// see them as part of an adjacent statement.
+		.replace(/--[^\n]*\n/g, '\n');
 
 	return rewritten
 		.split(';')
 		.map((s) => s.trim())
-		.filter((s) => s.length > 0 && !s.startsWith('--'));
+		.filter((s) => s.length > 0);
 }
 
 /**

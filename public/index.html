@@ -1581,7 +1581,10 @@
 
         async function initCalendar() {
             try {
-                const res = await fetch('/api/events');
+                const today = new Date();
+                const fromISO = new Date(today.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
+                const toISO = new Date(today.getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
+                const res = await fetch(`/api/events?from=${fromISO}&to=${toISO}`);
                 if (res.ok) {
                     eventsData = await res.json();
                 } else {

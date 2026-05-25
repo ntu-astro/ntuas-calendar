@@ -106,11 +106,14 @@ export function parseAndValidateEventInput(formData: FormData): ValidationResult
 		return fail(400, 'Invalid organizer email format.');
 	}
 
+	// Organizer is stored with a leading ICS delimiter (`;` for parameters, `:` for the value)
+	// so the ICS renderer can emit `ORGANIZER${organizer}` verbatim and produce a well-formed
+	// RFC 5545 line in both cases.
 	let organizer: string | null = null;
 	if (orgName && orgEmail) {
 		organizer = `;CN=${sanitizeIcsOrganizerName(orgName)}:mailto:${orgEmail}`;
 	} else if (orgEmail) {
-		organizer = `mailto:${orgEmail}`;
+		organizer = `:mailto:${orgEmail}`;
 	}
 
 	const transp = isAllDay ? 'TRANSPARENT' : (formData.get('transp') as string | null) || 'OPAQUE';

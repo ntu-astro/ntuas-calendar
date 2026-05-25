@@ -417,7 +417,7 @@ describe('POST /admin — update event', () => {
 		expect(row?.categories).toBe('NEW_CAT,LECTURE');
 		expect(row?.class).toBe('PRIVATE');
 		expect(row?.url).toBe('https://new.example');
-		expect(row?.organizer).toBe('mailto:new@x.com');
+		expect(row?.organizer).toBe(':mailto:new@x.com');
 
 		await env.DB.prepare('DELETE FROM events WHERE uid = ?').bind(uid).run();
 	});

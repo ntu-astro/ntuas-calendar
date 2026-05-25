@@ -18,9 +18,7 @@ describe('parseAndValidateEventInput', () => {
 	});
 
 	it('rejects summary over 500 chars', () => {
-		const result = parseAndValidateEventInput(
-			form({ summary: 'x'.repeat(501), dtstart: '2026-06-01T10:00:00Z' }),
-		);
+		const result = parseAndValidateEventInput(form({ summary: 'x'.repeat(501), dtstart: '2026-06-01T10:00:00Z' }));
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.error.body.error).toMatch(/500 characters/);
 	});
@@ -127,10 +125,22 @@ describe('parseAndValidateEventInput', () => {
 		}
 	});
 
-	it('defaults class to PUBLIC and status to CONFIRMED', () => {
+	it('prefixes email-only organizer with colon so ICS render is well-formed', () => {
 		const result = parseAndValidateEventInput(
-			form({ summary: 'A', dtstart: '2026-06-01T10:00:00Z' }),
+			form({
+				summary: 'A',
+				dtstart: '2026-06-01T10:00:00Z',
+				organizer_email: 'smith@ntu.edu.sg',
+			}),
 		);
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.input.organizer).toBe(':mailto:smith@ntu.edu.sg');
+		}
+	});
+
+	it('defaults class to PUBLIC and status to CONFIRMED', () => {
+		const result = parseAndValidateEventInput(form({ summary: 'A', dtstart: '2026-06-01T10:00:00Z' }));
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.input.class).toBe('PUBLIC');

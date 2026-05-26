@@ -21,6 +21,14 @@ describe('GET /health', () => {
 		const data = (await res.json()) as { status: string };
 		expect(data.status).toBe('ok');
 	});
+
+	it('reports db: connected when D1 is reachable', async () => {
+		const res = await req(`${BASE}/health`);
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as { status: string; db: string };
+		expect(data.status).toBe('ok');
+		expect(data.db).toBe('connected');
+	});
 });
 
 // ─── HSTS header ─────────────────────────────────────────────────────────────

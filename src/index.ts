@@ -8,7 +8,7 @@ export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
 
-		const healthRes = handleHealth(url);
+		const healthRes = await handleHealth(url, env);
 		if (healthRes) return healthRes;
 
 		const eventsRes = await handleEvents(url, request, env);

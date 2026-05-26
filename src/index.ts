@@ -3,6 +3,7 @@ import { handleHealth } from './routes/health.ts';
 import { handleEvents } from './routes/events.ts';
 import { handleAdmin } from './routes/admin.ts';
 import { handleIcs } from './routes/ics.ts';
+import { runDailyCleanup } from './scheduled.ts';
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -21,5 +22,8 @@ export default {
 		if (icsRes) return icsRes;
 
 		return new Response('404 - Endpoint not found.', { status: 404, headers: { ...SECURITY_HEADERS } });
+	},
+	async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+		await runDailyCleanup(env);
 	},
 } satisfies ExportedHandler<Env>;

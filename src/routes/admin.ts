@@ -1,5 +1,5 @@
 import { SESSION_MAX_AGE_SECONDS, RATE_LIMIT_WINDOW_MS, MAX_LOGIN_ATTEMPTS, SECURITY_HEADERS } from '../constants';
-import { timingSafeCompare, createSession, validateSession, deleteSession, cleanExpiredSessions, getCookie } from '../lib/auth';
+import { timingSafeCompare, createSession, validateSession, deleteSession, getCookie } from '../lib/auth';
 import { toIcsDate } from '../lib/ics';
 import { parseAndValidateEventInput } from '../lib/validation';
 import { ADMIN_HTML } from '../templates/admin.html.ts';
@@ -52,11 +52,6 @@ async function handleLogin(request: Request, env: Env): Promise<Response> {
 			headers: { 'Content-Type': 'text/html; charset=utf-8', ...SECURITY_HEADERS },
 		});
 	}
-
-	await env.DB.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
-		.bind(new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString())
-		.run();
-	await cleanExpiredSessions(env.DB);
 
 	const { token } = await createSession(env.DB);
 	return new Response(null, {

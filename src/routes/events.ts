@@ -1,4 +1,5 @@
 import { parseRange } from '../lib/range';
+import type { ApiEvent } from '../../client/src/api-types';
 
 interface EventRow {
 	uid: string;
@@ -15,11 +16,7 @@ interface EventRow {
 	organizer_email: string | null;
 }
 
-interface EventJson extends Omit<EventRow, 'organizer_name' | 'organizer_email'> {
-	organizer: { name: string | null; email: string | null } | null;
-}
-
-function toJson(row: EventRow): EventJson {
+function toJson(row: EventRow): ApiEvent {
 	const { organizer_name, organizer_email, ...rest } = row;
 	const organizer = organizer_name === null && organizer_email === null ? null : { name: organizer_name, email: organizer_email };
 	return { ...rest, organizer };

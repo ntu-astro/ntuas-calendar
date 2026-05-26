@@ -16,6 +16,99 @@ export function escapeHTML(str: string): string {
 	}[tag] || tag));
 }
 
+function createHeadingRow(parsed: Date | null): HTMLDivElement {
+	const headingDate = parsed
+		? parsed.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+		: 'Event Details';
+	const heading = document.createElement('div');
+	heading.className = 'detail-date-heading';
+	heading.textContent = headingDate;
+	return heading;
+}
+
+function createTitleRow(summary: string | null, status: string | null): HTMLDivElement {
+	const titleRow = document.createElement('div');
+	titleRow.className = 'detail-event-title';
+	titleRow.appendChild(document.createTextNode(summary || 'Untitled Event'));
+	titleRow.appendChild(document.createTextNode(' '));
+	const badge = document.createElement('span');
+	const statusClass = (status || 'CONFIRMED').toLowerCase();
+	badge.className = 'detail-badge badge-' + statusClass;
+	badge.textContent = status || 'CONFIRMED';
+	titleRow.appendChild(badge);
+	return titleRow;
+}
+
+function getTimeString(isAllDay: boolean, parsedDate: Date | null, parsedEnd: Date | null): string {
+	if (isAllDay) return 'All Day';
+	const timeOpts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+	const startTime = parsedDate ? parsedDate.toLocaleTimeString('en-SG', timeOpts) : '';
+	if (parsedEnd) {
+		return startTime + ' \u2014 ' + parsedEnd.toLocaleTimeString('en-SG', timeOpts);
+	}
+	return startTime;
+}
+
+function addDetailRow(card: HTMLElement, label: string, value: string): void {
+	const row = document.createElement('div');
+	row.className = 'detail-row';
+	const labelEl = document.createElement('span');
+	labelEl.className = 'detail-label';
+	labelEl.textContent = label;
+	const valueEl = document.createElement('span');
+	valueEl.className = 'detail-value';
+	valueEl.textContent = value;
+	row.appendChild(labelEl);
+	row.appendChild(valueEl);
+	card.appendChild(row);
+}
+
+function addLinkRow(card: HTMLElement, label: string, url: string): void {
+	const row = document.createElement('div');
+	row.className = 'detail-row';
+	const labelEl = document.createElement('span');
+	labelEl.className = 'detail-label';
+	labelEl.textContent = label;
+	const valueEl = document.createElement('span');
+	valueEl.className = 'detail-value';
+	const link = document.createElement('a');
+	link.href = url;
+	link.target = '_blank';
+	link.rel = 'noopener';
+	link.textContent = url;
+	valueEl.appendChild(link);
+	row.appendChild(labelEl);
+	row.appendChild(valueEl);
+	card.appendChild(row);
+}
+
+function buildEventCard(enriched: {
+	summary: string | null;
+	status: string | null;
+	isAllDay: boolean;
+	parsedDate: Date | null;
+	parsedEnd: Date | null;
+	location: string | null;
+	description: string | null;
+	categories: string | null;
+	url: string | null;
+}): HTMLDivElement {
+	const card = document.createElement('div');
+	card.className = 'detail-event-card';
+
+	card.appendChild(createTitleRow(enriched.summary, enriched.status));
+
+	const timeStr = getTimeString(enriched.isAllDay, enriched.parsedDate, enriched.parsedEnd);
+	addDetailRow(card, 'Time', timeStr);
+
+	if (enriched.location) addDetailRow(card, 'Location', enriched.location);
+	if (enriched.description) addDetailRow(card, 'Details', enriched.description);
+	if (enriched.categories) addDetailRow(card, 'Category', enriched.categories);
+	if (enriched.url) addLinkRow(card, 'Link', enriched.url);
+
+	return card;
+}
+
 export function showEventDetails(evt: ApiEvent): void {
 	const rawKey = evt.categories || null;
 	const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
@@ -36,82 +129,8 @@ export function showEventDetails(evt: ApiEvent): void {
 	const content = document.getElementById('eventDetailContent')!;
 	content.textContent = '';
 
-	// Date heading
-	const headingDate = parsed
-		? parsed.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-		: 'Event Details';
-	const heading = document.createElement('div');
-	heading.className = 'detail-date-heading';
-	heading.textContent = headingDate;
-	content.appendChild(heading);
-
-	// Event card
-	const card = document.createElement('div');
-	card.className = 'detail-event-card';
-
-	const titleRow = document.createElement('div');
-	titleRow.className = 'detail-event-title';
-	titleRow.appendChild(document.createTextNode(enriched.summary || 'Untitled Event'));
-	titleRow.appendChild(document.createTextNode(' '));
-	const badge = document.createElement('span');
-	const statusClass = (enriched.status || 'CONFIRMED').toLowerCase();
-	badge.className = 'detail-badge badge-' + statusClass;
-	badge.textContent = enriched.status || 'CONFIRMED';
-	titleRow.appendChild(badge);
-	card.appendChild(titleRow);
-
-	let timeStr: string;
-	if (enriched.isAllDay) {
-		timeStr = 'All Day';
-	} else {
-		const timeOpts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
-		const startTime = enriched.parsedDate ? enriched.parsedDate.toLocaleTimeString('en-SG', timeOpts) : '';
-		timeStr = startTime;
-		if (enriched.parsedEnd) {
-			timeStr = startTime + ' \u2014 ' + enriched.parsedEnd.toLocaleTimeString('en-SG', timeOpts);
-		}
-	}
-
-	function addDetailRow(label: string, value: string): void {
-		const row = document.createElement('div');
-		row.className = 'detail-row';
-		const labelEl = document.createElement('span');
-		labelEl.className = 'detail-label';
-		labelEl.textContent = label;
-		const valueEl = document.createElement('span');
-		valueEl.className = 'detail-value';
-		valueEl.textContent = value;
-		row.appendChild(labelEl);
-		row.appendChild(valueEl);
-		card.appendChild(row);
-	}
-
-	function addLinkRow(label: string, url: string): void {
-		const row = document.createElement('div');
-		row.className = 'detail-row';
-		const labelEl = document.createElement('span');
-		labelEl.className = 'detail-label';
-		labelEl.textContent = label;
-		const valueEl = document.createElement('span');
-		valueEl.className = 'detail-value';
-		const link = document.createElement('a');
-		link.href = url;
-		link.target = '_blank';
-		link.rel = 'noopener';
-		link.textContent = url;
-		valueEl.appendChild(link);
-		row.appendChild(labelEl);
-		row.appendChild(valueEl);
-		card.appendChild(row);
-	}
-
-	addDetailRow('Time', timeStr);
-	if (enriched.location) addDetailRow('Location', enriched.location);
-	if (enriched.description) addDetailRow('Details', enriched.description);
-	if (enriched.categories) addDetailRow('Category', enriched.categories);
-	if (enriched.url) addLinkRow('Link', enriched.url);
-
-	content.appendChild(card);
+	content.appendChild(createHeadingRow(parsed));
+	content.appendChild(buildEventCard(enriched));
 
 	// Swap sidebar views
 	document.getElementById('upcomingEventsView')!.style.display = 'none';
@@ -129,29 +148,17 @@ interface ApiEventWithParsedAndAllDay extends ApiEvent {
 	isAllDay: boolean;
 }
 
-export function renderUpcomingEvents(): void {
-	const list = document.getElementById('eventsList')!;
-	if (!eventsData || eventsData.length === 0) {
-		list.textContent = '';
-		const noEvt = document.createElement('div');
-		noEvt.className = 'no-events';
-		noEvt.textContent = 'No upcoming events scheduled.';
-		list.appendChild(noEvt);
-		return;
-	}
-
-	const now = new Date();
-
-	const upcoming = eventsData.map(e => {
-		const parsed = parseDtstart(e.dtstart);
-		return { ...e, parsedDate: parsed, isAllDay: !!(e.dtstart && !e.dtstart.includes('T')) } as ApiEventWithParsedAndAllDay;
-	})
+function getUpcomingEvents(now: Date): (ApiEventWithParsedAndAllDay & { parsedDate: Date })[] {
+	return eventsData
+		.map(e => {
+			const parsed = parseDtstart(e.dtstart);
+			return { ...e, parsedDate: parsed, isAllDay: !!(e.dtstart && !e.dtstart.includes('T')) } as ApiEventWithParsedAndAllDay;
+		})
 		.filter((e): e is ApiEventWithParsedAndAllDay & { parsedDate: Date } => e.parsedDate !== null)
 		.filter(evt => {
 			const rawKey = evt.categories || null;
 			const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
-			const isCategoryVisible = key === null || activeCategories.has(key);
-			return isCategoryVisible;
+			return key === null || activeCategories.has(key);
 		})
 		.filter(e => {
 			const eventDay = new Date(e.parsedDate);
@@ -162,59 +169,81 @@ export function renderUpcomingEvents(): void {
 		})
 		.sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime())
 		.slice(0, 5);
+}
+
+function createUpcomingEventItem(e: ApiEventWithParsedAndAllDay & { parsedDate: Date }): HTMLDivElement {
+	const rawKey = e.categories || null;
+	const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
+	const style = (key && CATEGORY_CONFIG[key]) || { color: '#787774', colorLight: '#ebeced' };
+	void style;
+
+	const dateDisplay = e.isAllDay
+		? e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }) + ' \u2022 All Day'
+		: e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+	const item = document.createElement('div');
+	item.className = 'event-item';
+	item.dataset.date = e.parsedDate.toISOString();
+	item.dataset.uid = e.uid || '';
+
+	const dateEl = document.createElement('div');
+	dateEl.className = 'event-date';
+	dateEl.textContent = dateDisplay;
+
+	const titleEl = document.createElement('div');
+	titleEl.className = 'event-title';
+	titleEl.textContent = e.summary || 'Untitled Event';
+
+	item.appendChild(dateEl);
+	item.appendChild(titleEl);
+	return item;
+}
+
+function renderNoEventsMessage(list: HTMLElement, message: string): void {
+	list.textContent = '';
+	const noEvt = document.createElement('div');
+	noEvt.className = 'no-events';
+	noEvt.textContent = message;
+	list.appendChild(noEvt);
+}
+
+function handleUpcomingEventClick(el: HTMLElement): void {
+	el.addEventListener('click', function (this: HTMLElement) {
+		const rawDate = this.dataset.date;
+		const evtUid = this.dataset.uid;
+		if (!rawDate) return;
+
+		const eventDate = new Date(rawDate);
+		if (scrollToDateImpl) {
+			scrollToDateImpl(eventDate, 'smooth');
+		}
+
+		const targeted = eventsData.find(e => e.uid === evtUid);
+		if (targeted) showEventDetails(targeted);
+	});
+}
+
+export function renderUpcomingEvents(): void {
+	const list = document.getElementById('eventsList')!;
+	if (!eventsData || eventsData.length === 0) {
+		renderNoEventsMessage(list, 'No upcoming events scheduled.');
+		return;
+	}
+
+	const upcoming = getUpcomingEvents(new Date());
 
 	if (upcoming.length === 0) {
-		list.textContent = '';
-		const noEvt = document.createElement('div');
-		noEvt.className = 'no-events';
-		noEvt.textContent = 'No upcoming events.';
-		list.appendChild(noEvt);
+		renderNoEventsMessage(list, 'No upcoming events.');
 		return;
 	}
 
 	list.textContent = '';
 	upcoming.forEach(e => {
-		const rawKey = e.categories || null;
-		const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
-		const style = (key && CATEGORY_CONFIG[key]) || { color: '#787774', colorLight: '#ebeced' };
-		void style;
-
-		const dateDisplay = e.isAllDay
-			? e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric' }) + ' \u2022 All Day'
-			: e.parsedDate.toLocaleDateString('en-SG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-		const item = document.createElement('div');
-		item.className = 'event-item';
-		item.dataset.date = e.parsedDate.toISOString();
-		item.dataset.uid = e.uid || '';
-
-		const dateEl = document.createElement('div');
-		dateEl.className = 'event-date';
-		dateEl.textContent = dateDisplay;
-
-		const titleEl = document.createElement('div');
-		titleEl.className = 'event-title';
-		titleEl.textContent = e.summary || 'Untitled Event';
-
-		item.appendChild(dateEl);
-		item.appendChild(titleEl);
+		const item = createUpcomingEventItem(e);
 		list.appendChild(item);
 	});
 
 	list.querySelectorAll('.event-item').forEach(el => {
-		el.addEventListener('click', function (this: HTMLElement) {
-			const rawDate = this.dataset.date;
-			const evtUid = this.dataset.uid;
-			if (!rawDate) return;
-
-			const eventDate = new Date(rawDate);
-			if (scrollToDateImpl) {
-				scrollToDateImpl(eventDate, 'smooth');
-			}
-
-			// Find the specific event by uid and show it
-			const targeted = eventsData.find(e => e.uid === evtUid);
-			if (targeted) showEventDetails(targeted);
-		});
+		handleUpcomingEventClick(el as HTMLElement);
 	});
 }

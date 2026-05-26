@@ -91,6 +91,31 @@ export function refreshAllDayChips(): void {
 	});
 }
 
+function createDayNumberElement(cellDate: Date, isToday: boolean): HTMLSpanElement {
+	const numEl = document.createElement('span');
+	numEl.className = isToday ? 'today-marker' : 'day-number';
+	const dayNum = cellDate.getDate();
+	if (dayNum === 1) {
+		numEl.classList.add('first-of-month');
+		const shortMonth = cellDate.toLocaleString('default', { month: 'short' });
+		numEl.textContent = `${shortMonth} ${dayNum}`;
+	} else {
+		numEl.textContent = String(dayNum);
+	}
+	return numEl;
+}
+
+function handleDayCellClick(dayEl: HTMLDivElement): void {
+	document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+	dayEl.classList.add('selected');
+	const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
+	if (visible.length > 0) {
+		showEventDetails(visible[0]);
+	} else {
+		clearEventDetails();
+	}
+}
+
 function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, todayStr: string, d: number): HTMLDivElement {
 	const cellMonthKey = getMonthKey(cellDate);
 	const dayEl = document.createElement('div') as HTMLDivElement;
@@ -115,20 +140,7 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	dayEl.dataset.date = currentDayStr;
 	const isToday = currentDayStr === todayStr;
 
-	const numEl = document.createElement('span');
-	if (isToday) {
-		numEl.className = 'today-marker';
-	} else {
-		numEl.className = 'day-number';
-	}
-
-	if (dayNum === 1) {
-		numEl.classList.add('first-of-month');
-		const shortMonth = cellDate.toLocaleString('default', { month: 'short' });
-		numEl.textContent = `${shortMonth} ${dayNum}`;
-	} else {
-		numEl.textContent = String(dayNum);
-	}
+	const numEl = createDayNumberElement(cellDate, isToday);
 	dayEl.appendChild(numEl);
 
 	const dayEvents = eventsData.filter(e => {
@@ -137,16 +149,7 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	});
 
 	applyDayEventChips(dayEl, dayEvents);
-	dayEl.addEventListener('click', () => {
-		document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-		dayEl.classList.add('selected');
-		const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
-		if (visible.length > 0) {
-			showEventDetails(visible[0]);
-		} else {
-			clearEventDetails();
-		}
-	});
+	dayEl.addEventListener('click', () => handleDayCellClick(dayEl));
 
 	return dayEl;
 }

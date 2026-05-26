@@ -1,14 +1,14 @@
 {
 	"compilerOptions": {
 		"target": "es2022",
-		"module": "esnext",
-		"moduleResolution": "bundler",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],
 		"strict": true,
 		"noEmit": false,
 		"outDir": "public/dist",
 		"rootDir": "client/src",
-		"sourceMap": false,
+		"sourceMap": true,
 		"declaration": false,
 		"skipLibCheck": true,
 		"isolatedModules": true,

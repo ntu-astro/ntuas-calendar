@@ -1,4 +1,5 @@
 import type { ApiEvent } from './api-types.js';
+import { fetchEvents } from './api.js';
 import {
 	STATE,
 	activeCategories,
@@ -138,12 +139,8 @@ async function initCalendar(): Promise<void> {
 		const today = new Date();
 		const fromISO = new Date(today.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
 		const toISO = new Date(today.getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
-		const res = await fetch(`/api/events?from=${fromISO}&to=${toISO}`);
-		if (res.ok) {
-			setEventsData(await res.json() as ApiEvent[]);
-		} else {
-			document.getElementById('errorBanner')!.classList.add('visible');
-		}
+		const events = await fetchEvents(fromISO, toISO);
+		setEventsData(events);
 	} catch {
 		document.getElementById('errorBanner')!.classList.add('visible');
 	}

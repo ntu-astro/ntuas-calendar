@@ -27,12 +27,14 @@ export default [
 		plugins: { '@typescript-eslint': tseslint },
 		rules: {
 			...sharedRules,
-			// Lock in the existing security discipline: no direct innerHTML writes.
+			// Lock in the existing security discipline: no direct innerHTML/outerHTML writes.
 			'no-restricted-syntax': [
 				'error',
 				{
-					selector: "AssignmentExpression[left.property.name='innerHTML']",
-					message: 'Direct innerHTML assignment is forbidden. Use createElement/textContent + escapeHTML().',
+					selector:
+						"AssignmentExpression[left.property.name='innerHTML'], AssignmentExpression[left.property.value='innerHTML'], AssignmentExpression[left.property.name='outerHTML'], AssignmentExpression[left.property.value='outerHTML']",
+					message:
+						'Direct innerHTML/outerHTML assignment is forbidden. Use createElement/textContent + escapeHTML().',
 				},
 			],
 		},

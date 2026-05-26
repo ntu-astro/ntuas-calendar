@@ -1,14 +1,7 @@
 import type { ApiEvent } from './api-types.js';
 import { eventsData, activeCategories, CATEGORY_CONFIG } from './state.js';
 import { parseDtstart, dtToDateStr } from './dates.js';
-
-export type ScrollToDateFn = (target: Date, behavior?: ScrollBehavior) => void;
-
-let scrollToDateImpl: ScrollToDateFn | null = null;
-
-export function setScrollToDate(fn: ScrollToDateFn): void {
-	scrollToDateImpl = fn;
-}
+import { scrollToDate } from './weekGrid.js';
 
 export function escapeHTML(str: string): string {
 	return str.replace(/[&<>'"]/g, tag => ({
@@ -214,9 +207,7 @@ function handleUpcomingEventClick(el: HTMLElement): void {
 		if (!rawDate) return;
 
 		const eventDate = new Date(rawDate);
-		if (scrollToDateImpl) {
-			scrollToDateImpl(eventDate, 'smooth');
-		}
+		scrollToDate(eventDate, 'smooth');
 
 		const targeted = eventsData.find(e => e.uid === evtUid);
 		if (targeted) showEventDetails(targeted);

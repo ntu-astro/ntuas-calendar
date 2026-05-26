@@ -1,12 +1,6 @@
 import { miniCalDate, setMiniCalDate } from './state.js';
 import { clearEventDetails } from './eventDetail.js';
-
-export type ScrollToDateFn = (target: Date, behavior?: ScrollBehavior) => void;
-let scrollToDateImpl: ScrollToDateFn | null = null;
-
-export function setMiniCalScrollToDate(fn: ScrollToDateFn): void {
-	scrollToDateImpl = fn;
-}
+import { scrollToDate } from './weekGrid.js';
 
 function renderPrevMonthDays(grid: HTMLElement, year: number, month: number, firstDay: number, prevMonthDays: number): void {
 	for (let i = firstDay - 1; i >= 0; i--) {
@@ -19,9 +13,7 @@ function renderPrevMonthDays(grid: HTMLElement, year: number, month: number, fir
 			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
 			renderMiniCalendar();
 			clearEventDetails();
-			if (scrollToDateImpl) {
-				scrollToDateImpl(targetDate, 'smooth');
-			}
+			scrollToDate(targetDate, 'smooth');
 		});
 		grid.appendChild(el);
 	}
@@ -37,9 +29,7 @@ function renderCurrentMonthDays(grid: HTMLElement, year: number, month: number, 
 		el.addEventListener('click', () => {
 			const targetDate = new Date(year, month, i);
 			clearEventDetails();
-			if (scrollToDateImpl) {
-				scrollToDateImpl(targetDate, 'smooth');
-			}
+			scrollToDate(targetDate, 'smooth');
 		});
 		grid.appendChild(el);
 	}
@@ -57,9 +47,7 @@ function renderNextMonthDays(grid: HTMLElement, year: number, month: number, tot
 			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
 			renderMiniCalendar();
 			clearEventDetails();
-			if (scrollToDateImpl) {
-				scrollToDateImpl(targetDate, 'smooth');
-			}
+			scrollToDate(targetDate, 'smooth');
 		});
 		grid.appendChild(el);
 	}

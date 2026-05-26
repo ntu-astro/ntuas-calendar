@@ -1,4 +1,3 @@
-import type { ApiEvent } from './api-types.js';
 import { fetchEvents } from './api.js';
 import {
 	STATE,
@@ -9,36 +8,35 @@ import {
 	CATEGORY_CONFIG,
 	setEventsData,
 	setMiniCalDate,
-	setCurrentVisibleMonth,
 	setCategoryConfig,
 	type CategoryStyle,
 } from './state.js';
 import {
-	sundayOfWeek,
-	thursdayOfWeek,
-	addWeeks,
 	getWeekKey,
 	getMonthKey,
 	monthKeyToDate,
-	formatMonthYear,
-	dtToDateStr,
 } from './dates.js';
 import {
-	showEventDetails,
 	clearEventDetails,
 	renderUpcomingEvents,
-	setScrollToDate,
 } from './eventDetail.js';
 import {
 	openSearch,
 	closeSearch,
 	renderSearchResults,
-	setSearchScrollToDate,
 } from './search.js';
 import {
 	renderMiniCalendar,
-	setMiniCalScrollToDate,
 } from './miniCal.js';
+import {
+	refreshAllDayChips,
+	renderWeeks,
+	setupSentinelObserver,
+	setupMonthHeaderObserver,
+	scrollWeekIntoView,
+	scrollToDate,
+	scrollToMonth,
+} from './weekGrid.js';
 
 // ─── MODULE-SCOPE STATE (lifted from the former IIFE closure) ───
 const SUB_URL = 'https://calendar.ntuas.com/subscribe';
@@ -53,7 +51,6 @@ const NOTION_PALETTE: ReadonlyArray<{ color: string; colorLight: string }> = [
 	{ color: '#cb912f', colorLight: '#fbf3db' }, // yellow
 	{ color: '#64473a', colorLight: '#e9e5e3' }  // brown
 ];
-const DEFAULT_CATEGORY: CategoryStyle = { color: '#787774', colorLight: '#ebeced' };
 
 function buildCategoriesFromEvents(): void {
 	const seen = new Map<string, string>();
@@ -75,21 +72,6 @@ function buildCategoriesFromEvents(): void {
 	setCategoryConfig(config);
 }
 
-function getCategoryKey(evt: ApiEvent): string | null {
-	if (!evt || !evt.categories) return null;
-	const first = String(evt.categories).toLowerCase().split(/[,;]/)[0].trim();
-	return first && CATEGORY_CONFIG[first] ? first : null;
-}
-
-function getCategoryStyle(evt: ApiEvent): CategoryStyle {
-	const key = getCategoryKey(evt);
-	return key ? CATEGORY_CONFIG[key] : DEFAULT_CATEGORY;
-}
-
-function isCategoryVisible(evt: ApiEvent): boolean {
-	const key = getCategoryKey(evt);
-	return key === null || activeCategories.has(key);
-}
 
 function buildCheckSvg(): SVGElement {
 	const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -143,9 +125,6 @@ function renderCategoryFilter(): void {
 // ─── INIT ───
 
 async function initCalendar(): Promise<void> {
-	setScrollToDate(scrollToDate);
-	setSearchScrollToDate(scrollToDate);
-	setMiniCalScrollToDate(scrollToDate);
 	try {
 		const today = new Date();
 		const fromISO = new Date(today.getFullYear() - 1, 0, 1).toISOString().slice(0, 10);
@@ -200,444 +179,7 @@ function renderDayNamesRow(): void {
 	});
 }
 
-// ─── WEEK ROW INSERTION (continuous grid, no month sections) ───
 
-function insertWeekRowSorted(row: HTMLDivElement, weekKey: string): void {
-	const container = document.getElementById('scrollContainer')!;
-	const sentinelBottom = document.getElementById('sentinelBottom')!;
-	const existingWeeks = Array.from(container.querySelectorAll('.week-row')) as HTMLDivElement[];
-	let inserted = false;
-	for (const existing of existingWeeks) {
-		if (existing.dataset.week && existing.dataset.week > weekKey) {
-			container.insertBefore(row, existing);
-			inserted = true;
-			break;
-		}
-	}
-	if (!inserted) {
-		container.insertBefore(row, sentinelBottom);
-	}
-}
-
-// ─── DAY EVENT CHIPS ───
-
-function getVisibleEventsForDate(dateStr: string | null): ApiEvent[] {
-	if (!dateStr) return [];
-	return eventsData.filter(e => {
-		if (!e.dtstart) return false;
-		if (dtToDateStr(e.dtstart) !== dateStr) return false;
-		return isCategoryVisible(e);
-	});
-}
-
-function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent[]): void {
-	// Strip existing chips/more from a re-render
-	dayEl.querySelectorAll('.event-chip, .event-chip-more').forEach(el => el.remove());
-	const visible = allDayEvents.filter(isCategoryVisible);
-	if (visible.length === 0) {
-		dayEl.classList.remove('has-event');
-		return;
-	}
-	dayEl.classList.add('has-event');
-	visible.slice(0, 2).forEach(evt => {
-		const chip = document.createElement('div');
-		chip.className = 'event-chip';
-		const style = getCategoryStyle(evt);
-		chip.style.background = style.colorLight;
-		chip.style.color = style.color;
-		chip.textContent = evt.summary || 'Event';
-		chip.addEventListener('click', (e) => {
-			e.stopPropagation();
-			document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-			dayEl.classList.add('selected');
-			showEventDetails(evt);
-		});
-		dayEl.appendChild(chip);
-	});
-	if (visible.length > 2) {
-		const more = document.createElement('div');
-		more.className = 'event-chip-more';
-		more.textContent = `+${visible.length - 2} more`;
-		dayEl.appendChild(more);
-	}
-}
-
-function refreshAllDayChips(): void {
-	document.querySelectorAll('.calendar-day[data-date]').forEach(el => {
-		const dayEl = el as HTMLDivElement;
-		const dateStr = dayEl.dataset.date || '';
-		const dayEvents = eventsData.filter(e => e.dtstart && dtToDateStr(e.dtstart) === dateStr);
-		applyDayEventChips(dayEl, dayEvents);
-	});
-}
-
-// ─── WEEK ROW RENDERING ───
-
-function renderWeekRow(sundayDate: Date): HTMLElement {
-	const weekKey = getWeekKey(sundayDate);
-	if (STATE.weekElements.has(weekKey)) return STATE.weekElements.get(weekKey)!;
-
-	const today = new Date();
-	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-	const row = document.createElement('div') as HTMLDivElement;
-	row.className = 'week-row';
-	row.dataset.week = weekKey;
-
-	// Determine which month this week belongs to (by Thursday)
-	const thu = thursdayOfWeek(sundayDate);
-	const ownerMonthKey = getMonthKey(thu);
-
-	for (let d = 0; d < 7; d++) {
-		const cellDate = new Date(sundayDate);
-		cellDate.setDate(cellDate.getDate() + d);
-
-		const cellMonthKey = getMonthKey(cellDate);
-		const dayEl = document.createElement('div') as HTMLDivElement;
-		dayEl.className = 'calendar-day';
-
-		// Weekend styling (Sun=0, Sat=6)
-		if (d === 0 || d === 6) {
-			dayEl.classList.add('weekend-day');
-		}
-
-		// Store cell's month for dynamic ghosting on scroll
-		dayEl.dataset.dateMonth = cellMonthKey;
-
-		// Ghost cells that don't belong to the currently visible month.
-		// Fall back to the week's owning month until the scroll observer
-		// sets currentVisibleMonth on first paint.
-		const refMonthKey = currentVisibleMonth || ownerMonthKey;
-		if (cellMonthKey !== refMonthKey) {
-			dayEl.classList.add('other-month-day');
-		}
-
-		const year = cellDate.getFullYear();
-		const month = cellDate.getMonth();
-		const dayNum = cellDate.getDate();
-
-		const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-		dayEl.dataset.date = currentDayStr;
-		const isToday = currentDayStr === todayStr;
-
-		const numEl = document.createElement('span');
-		if (isToday) {
-			numEl.className = 'today-marker';
-		} else {
-			numEl.className = 'day-number';
-		}
-		// Show month name on the 1st of each month (bold)
-		if (dayNum === 1) {
-			numEl.classList.add('first-of-month');
-			const shortMonth = cellDate.toLocaleString('default', { month: 'short' });
-			numEl.textContent = `${shortMonth} ${dayNum}`;
-		} else {
-			numEl.textContent = String(dayNum);
-		}
-		dayEl.appendChild(numEl);
-
-		// Events for this day
-		const dayEvents = eventsData.filter(e => {
-			if (!e.dtstart) return false;
-			return dtToDateStr(e.dtstart) === currentDayStr;
-		});
-
-		applyDayEventChips(dayEl, dayEvents);
-		dayEl.addEventListener('click', () => {
-			document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
-			dayEl.classList.add('selected');
-			const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
-			if (visible.length > 0) {
-				showEventDetails(visible[0]);
-			} else {
-				clearEventDetails();
-			}
-		});
-
-		row.appendChild(dayEl);
-	}
-
-	// Place directly in scroll container (continuous grid)
-	insertWeekRowSorted(row, weekKey);
-
-	STATE.weekElements.set(weekKey, row);
-	return row;
-}
-
-// ─── RENDER WEEKS ───
-
-function renderWeeks(centerDate: Date, direction: 'both' | 'up' | 'down'): void {
-	const center = sundayOfWeek(centerDate);
-	const count = STATE.BUFFER_WEEKS;
-
-	if (direction === 'both' || direction === 'up') {
-		for (let i = count; i >= 1; i--) {
-			const sun = addWeeks(center, -i);
-			renderWeekRow(sun);
-		}
-	}
-
-	// Render center week
-	renderWeekRow(center);
-
-	if (direction === 'both' || direction === 'down') {
-		for (let i = 1; i <= count; i++) {
-			const sun = addWeeks(center, i);
-			renderWeekRow(sun);
-		}
-	}
-
-	updateRenderedRange();
-	recycleIfNeeded();
-}
-
-function appendWeeks(count: number): void {
-	if (!STATE.renderedEnd) return;
-	for (let i = 1; i <= count; i++) {
-		const sun = addWeeks(STATE.renderedEnd, i);
-		renderWeekRow(sun);
-	}
-	updateRenderedRange();
-	recycleIfNeeded();
-}
-
-function prependWeeks(count: number): void {
-	if (!STATE.renderedStart) return;
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const anchorEl = STATE.weekElements.get(getWeekKey(STATE.renderedStart));
-	const anchorTop = anchorEl ? anchorEl.offsetTop : 0;
-
-	for (let i = count; i >= 1; i--) {
-		const sun = addWeeks(STATE.renderedStart, -i);
-		renderWeekRow(sun);
-	}
-
-	// Manual scroll anchor compensation
-	if (anchorEl) {
-		const shift = anchorEl.offsetTop - anchorTop;
-		scrollArea.scrollTop += shift;
-	}
-
-	updateRenderedRange();
-	recycleIfNeeded();
-}
-
-function updateRenderedRange(): void {
-	const keys = Array.from(STATE.weekElements.keys()).sort();
-	if (keys.length === 0) {
-		STATE.renderedStart = null;
-		STATE.renderedEnd = null;
-		return;
-	}
-	const parseKey = (k: string): Date => {
-		const [y, m, d] = k.split('-').map(Number);
-		return new Date(y, m - 1, d);
-	};
-	STATE.renderedStart = parseKey(keys[0]);
-	STATE.renderedEnd = parseKey(keys[keys.length - 1]);
-}
-
-function recycleIfNeeded(): void {
-	if (STATE.weekElements.size <= STATE.MAX_WEEKS) return;
-
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const scrollTop = scrollArea.scrollTop;
-	const viewportHeight = scrollArea.clientHeight;
-	const viewCenter = scrollTop + viewportHeight / 2;
-
-	const keys = Array.from(STATE.weekElements.keys()).sort();
-	// Find the week closest to viewport center
-	let closestIdx = 0;
-	let closestDist = Infinity;
-	keys.forEach((key, idx) => {
-		const el = STATE.weekElements.get(key);
-		if (!el) return;
-		const elCenter = el.offsetTop + el.offsetHeight / 2;
-		const dist = Math.abs(elCenter - viewCenter);
-		if (dist < closestDist) {
-			closestDist = dist;
-			closestIdx = idx;
-		}
-	});
-
-	const keepStart = Math.max(0, closestIdx - Math.floor(STATE.MAX_WEEKS / 2));
-	const keepEnd = Math.min(keys.length - 1, keepStart + STATE.MAX_WEEKS - 1);
-
-	// Remove weeks outside keep range
-	for (let i = 0; i < keepStart; i++) {
-		removeWeek(keys[i]);
-	}
-	for (let i = keepEnd + 1; i < keys.length; i++) {
-		removeWeek(keys[i]);
-	}
-
-	updateRenderedRange();
-}
-
-function removeWeek(weekKey: string): void {
-	const el = STATE.weekElements.get(weekKey);
-	if (el) {
-		el.remove();
-		STATE.weekElements.delete(weekKey);
-	}
-}
-
-// ─── INTERSECTION OBSERVERS ───
-
-function setupSentinelObserver(): void {
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const observer = new IntersectionObserver((entries) => {
-		for (const entry of entries) {
-			if (!entry.isIntersecting) continue;
-			if (entry.target.id === 'sentinelBottom') {
-				appendWeeks(8);
-			} else if (entry.target.id === 'sentinelTop') {
-				prependWeeks(8);
-			}
-		}
-	}, {
-		root: scrollArea,
-		rootMargin: '200px 0px',
-		threshold: 0,
-	});
-
-	observer.observe(document.getElementById('sentinelTop')!);
-	observer.observe(document.getElementById('sentinelBottom')!);
-	STATE.observers.sentinel = observer;
-}
-
-function setupMonthHeaderObserver(): void {
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	let rafPending = false;
-
-	function updateVisibleMonth(): void {
-		rafPending = false;
-		const areaRect = scrollArea.getBoundingClientRect();
-		const viewCenter = areaRect.top + areaRect.height / 2;
-
-		let closestRow: HTMLElement | null = null;
-		let closestDist = Infinity;
-
-		for (const [, el] of STATE.weekElements) {
-			const rect = el.getBoundingClientRect();
-			const rowCenter = rect.top + rect.height / 2;
-			const dist = Math.abs(rowCenter - viewCenter);
-			if (dist < closestDist) {
-				closestDist = dist;
-				closestRow = el;
-			}
-		}
-
-		if (closestRow) {
-			// Derive month from the week's Thursday
-			const weekKey = closestRow.dataset.week || '';
-			const [y, m, d] = weekKey.split('-').map(Number);
-			const sun = new Date(y, m - 1, d);
-			const thu = thursdayOfWeek(sun);
-			const monthKey = getMonthKey(thu);
-
-			if (monthKey !== currentVisibleMonth) {
-				setCurrentVisibleMonth(monthKey);
-				const md = monthKeyToDate(monthKey);
-				document.getElementById('monthLabel')!.textContent = formatMonthYear(md);
-
-				// Re-ghost every rendered day cell against the newly visible month
-				document.querySelectorAll('.calendar-day[data-date-month]').forEach(el => {
-					const cell = el as HTMLElement;
-					cell.classList.toggle('other-month-day', cell.dataset.dateMonth !== monthKey);
-				});
-
-				// Sync mini-cal
-				setMiniCalDate(new Date(md));
-				renderMiniCalendar();
-			}
-		}
-	}
-
-	scrollArea.addEventListener('scroll', () => {
-		if (!rafPending) {
-			rafPending = true;
-			requestAnimationFrame(updateVisibleMonth);
-		}
-	}, { passive: true });
-
-	// Expose for explicit calls
-	STATE.updateVisibleMonth = updateVisibleMonth;
-
-	// Initial sync
-	updateVisibleMonth();
-}
-
-// ─── SCROLL TO DATE ───
-
-// Sticky offset: top bar + month heading + day names row
-const STICKY_OFFSET = 112;
-
-function scrollWeekIntoView(weekEl: HTMLElement, behavior?: 'smooth'): void {
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const targetTop = weekEl.offsetTop - STICKY_OFFSET;
-	if (behavior === 'smooth') {
-		scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
-	} else {
-		scrollArea.scrollTop = targetTop;
-	}
-}
-
-function scrollToDate(targetDate: Date, _behavior?: ScrollBehavior): void {
-	const weekKey = getWeekKey(targetDate);
-	let weekEl = STATE.weekElements.get(weekKey);
-
-	// Check if target is nearby (within a few screens) for smooth scroll
-	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const canSmoothScroll = weekEl && Math.abs(weekEl.offsetTop - STICKY_OFFSET - scrollArea.scrollTop) < scrollArea.clientHeight * 1.5;
-
-	if (weekEl && canSmoothScroll) {
-		scrollWeekIntoView(weekEl, 'smooth');
-	} else {
-		// Far away or not in DOM: clear and re-center
-		if (STATE.observers.sentinel) {
-			STATE.observers.sentinel.disconnect();
-		}
-
-		clearAllWeeks();
-		renderWeeks(targetDate, 'both');
-		weekEl = STATE.weekElements.get(weekKey);
-
-		if (weekEl) {
-			scrollWeekIntoView(weekEl);
-		}
-
-		// Re-enable sentinel observer after layout settles
-		requestAnimationFrame(() => {
-			requestAnimationFrame(() => {
-				if (STATE.observers.sentinel) {
-					STATE.observers.sentinel.observe(document.getElementById('sentinelTop')!);
-					STATE.observers.sentinel.observe(document.getElementById('sentinelBottom')!);
-				}
-
-				if (STATE.updateVisibleMonth) {
-					STATE.updateVisibleMonth();
-				}
-			});
-		});
-	}
-}
-
-function scrollToMonth(monthKey: string): void {
-	const d = monthKeyToDate(monthKey);
-	d.setDate(1);
-	scrollToDate(d, 'smooth');
-}
-
-function clearAllWeeks(): void {
-	for (const el of STATE.weekElements.values()) {
-		el.remove();
-	}
-	STATE.weekElements.clear();
-
-	STATE.renderedStart = null;
-	STATE.renderedEnd = null;
-}
 
 // ─── BUTTON HANDLERS ───
 

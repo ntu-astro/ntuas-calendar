@@ -2,13 +2,7 @@ import type { ApiEvent } from './api-types.js';
 import { eventsData } from './state.js';
 import { parseDtstart } from './dates.js';
 import { showEventDetails } from './eventDetail.js';
-
-export type ScrollToDateFn = (target: Date, behavior?: ScrollBehavior) => void;
-let scrollToDateImpl: ScrollToDateFn | null = null;
-
-export function setSearchScrollToDate(fn: ScrollToDateFn): void {
-	scrollToDateImpl = fn;
-}
+import { scrollToDate } from './weekGrid.js';
 
 export function openSearch(): void {
 	const overlay = document.getElementById('searchOverlay')!;
@@ -63,8 +57,8 @@ function createSearchResultItem(evt: ApiEventWithParsedDate): HTMLElement {
 
 	item.addEventListener('click', () => {
 		closeSearch();
-		if (evt.parsedDate && scrollToDateImpl) {
-			scrollToDateImpl(evt.parsedDate, 'smooth');
+		if (evt.parsedDate) {
+			scrollToDate(evt.parsedDate, 'smooth');
 		}
 		showEventDetails(evt);
 	});

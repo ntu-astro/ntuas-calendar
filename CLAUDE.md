@@ -42,7 +42,7 @@ Do NOT hand-write an ambient `Env` augmentation in `src/**/*.d.ts` — wrangler 
 
 Tests use an in-memory D1 — no local or remote database needed:
 ```bash
-npm test                                   # Runs all unit tests (sequential spec runs are recommended)
+npm test                                   # Runs all unit tests
 npm test -- --run test/templates.spec.ts   # Runs HTML byte-snapshot regression tests
 ```
 

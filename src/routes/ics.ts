@@ -3,28 +3,13 @@ import { fold, sanitizeIcsValue, sanitizeIcsOrganizerName } from '../lib/ics';
 import { parseRange } from '../lib/range';
 import type { Calendar, Event, EventAlarm, EventAttachment } from '../types';
 
-/**
- * Build the RFC 5545 ORGANIZER property line from an event row.
- *
- * Source of truth post-migration 0004 is the split `organizer_name` /
- * `organizer_email` columns. The legacy `organizer` column (which stored a
- * pre-formatted value with a leading `:` or `;` delimiter) is a fallback for
- * rows that still carry the old shape — defensive only; the 0004 backfill
- * should have populated the new columns for every legacy row.
- *
- * Returns null when there is no organizer to emit.
- */
+/** Build the RFC 5545 ORGANIZER property line from an event row, or null if absent. */
 function renderOrganizerLine(event: Event): string | null {
-	if (event.organizer_email) {
-		if (event.organizer_name) {
-			return `ORGANIZER;CN=${sanitizeIcsOrganizerName(event.organizer_name)}:mailto:${event.organizer_email}`;
-		}
-		return `ORGANIZER:mailto:${event.organizer_email}`;
+	if (!event.organizer_email) return null;
+	if (event.organizer_name) {
+		return `ORGANIZER;CN=${sanitizeIcsOrganizerName(event.organizer_name)}:mailto:${event.organizer_email}`;
 	}
-	if (event.organizer) {
-		return `ORGANIZER${event.organizer}`;
-	}
-	return null;
+	return `ORGANIZER:mailto:${event.organizer_email}`;
 }
 
 export async function handleIcs(url: URL, _request: Request, env: Env): Promise<Response | null> {

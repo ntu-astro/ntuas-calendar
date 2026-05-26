@@ -6,6 +6,8 @@ import schemaSql from '../../migrations/0001_initial.sql?raw';
 // only mutate data or drop dead schema objects that 0001 never declares, so
 // they are not needed for tests starting from a clean in-memory DB.
 import splitOrganizerSql from '../../migrations/0004_split_organizer_columns.sql?raw';
+// Migration 0005 drops the legacy organizer column (rollback window closed).
+import dropLegacyOrganizerSql from '../../migrations/0005_drop_legacy_organizer.sql?raw';
 
 /**
  * Load the production schema.sql, rewrite it to be safe for repeated test runs,
@@ -86,6 +88,16 @@ export async function applySchema(db: D1Database): Promise<void> {
 			// Re-applying ADD COLUMN against an already-migrated DB is a no-op
 			// for our purposes; surface anything else.
 			if (!/duplicate column name/i.test(msg)) throw e;
+		}
+	}
+	for (const stmt of splitStatements(dropLegacyOrganizerSql)) {
+		try {
+			await db.prepare(stmt).run();
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : String(e);
+			// Re-applying DROP COLUMN against an already-migrated DB fails with
+			// "no such column: organizer"; treat that as a no-op identical to 0004 handling.
+			if (!/no such column: organizer\b/i.test(msg)) throw e;
 		}
 	}
 }

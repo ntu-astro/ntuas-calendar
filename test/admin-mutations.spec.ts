@@ -165,8 +165,8 @@ describe('POST /admin — update event', () => {
 		// Seed event with initial values for the four fields under test.
 		const uid = 'event-update-fields-test';
 		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class, categories, url, organizer)
-				 VALUES (?, 'main-cal-001', '20260524T120000Z', '20260601T100000Z', 'Initial', 'CONFIRMED', 'PUBLIC', 'OLD_CAT', 'https://old.example', 'mailto:old@x.com')`,
+			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, class, categories, url)
+				 VALUES (?, 'main-cal-001', '20260524T120000Z', '20260601T100000Z', 'Initial', 'CONFIRMED', 'PUBLIC', 'OLD_CAT', 'https://old.example')`,
 		)
 			.bind(uid)
 			.run();

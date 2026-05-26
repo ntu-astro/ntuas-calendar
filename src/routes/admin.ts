@@ -154,14 +154,12 @@ async function addEvent(formData: FormData, env: Env): Promise<Response | null> 
 	const uid = `event-${crypto.randomUUID()}@ntuas.edu`;
 	const nowIcs = toIcsDate(new Date().toISOString());
 
-	// Legacy `organizer` column is intentionally left NULL on new rows; the split
-	// `organizer_name` / `organizer_email` columns are the source of truth post-0004.
 	await env.DB.prepare(
 		`INSERT INTO events (
 				uid, calendar_id, dtstamp, created, last_modified, dtstart, dtend,
 				summary, description, location, transp, geo, categories, class, status, url,
-				organizer, organizer_name, organizer_email
-			) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+				organizer_name, organizer_email
+			) VALUES (?, 'main-cal-001', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			uid,
@@ -212,13 +210,11 @@ async function updateEvent(formData: FormData, env: Env): Promise<Response | nul
 	const i = result.input;
 	const nowIcs = toIcsDate(new Date().toISOString());
 
-	// Clear the legacy `organizer` column so any pre-0004 prefix-shape value can
-	// not silently re-surface after an edit — split columns are now authoritative.
 	await env.DB.prepare(
 		`UPDATE events
 		 SET summary = ?, dtstart = ?, dtend = ?, status = ?, location = ?, geo = ?, description = ?,
 		     transp = ?, categories = ?, class = ?, url = ?,
-		     organizer = NULL, organizer_name = ?, organizer_email = ?,
+		     organizer_name = ?, organizer_email = ?,
 		     last_modified = ?, sequence = sequence + 1
 		 WHERE uid = ?`,
 	)

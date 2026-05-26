@@ -69,13 +69,12 @@ async function fetchEventsJson(): Promise<JsonEvent[]> {
 }
 
 interface OrganizerRow {
-	organizer: string | null;
 	organizer_name: string | null;
 	organizer_email: string | null;
 }
 
 async function readOrganizer(uid: string): Promise<OrganizerRow | null> {
-	return env.DB.prepare('SELECT organizer, organizer_name, organizer_email FROM events WHERE uid = ?').bind(uid).first<OrganizerRow>();
+	return env.DB.prepare('SELECT organizer_name, organizer_email FROM events WHERE uid = ?').bind(uid).first<OrganizerRow>();
 }
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
@@ -107,11 +106,8 @@ describe('admin add/update writes split organizer columns', () => {
 		});
 		expect(res.status).toBe(200);
 
-		const row = await env.DB.prepare(
-			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'Talk'",
-		).first<OrganizerRow>();
+		const row = await env.DB.prepare("SELECT organizer_name, organizer_email FROM events WHERE summary = 'Talk'").first<OrganizerRow>();
 		expect(row).toBeTruthy();
-		expect(row?.organizer).toBeNull(); // legacy column intentionally NULL for new rows
 		expect(row?.organizer_name).toBe('Prof Smith');
 		expect(row?.organizer_email).toBe('smith@ntu.edu.sg');
 	});
@@ -126,9 +122,8 @@ describe('admin add/update writes split organizer columns', () => {
 		});
 
 		const row = await env.DB.prepare(
-			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'EmailOnly'",
+			"SELECT organizer_name, organizer_email FROM events WHERE summary = 'EmailOnly'",
 		).first<OrganizerRow>();
-		expect(row?.organizer).toBeNull();
 		expect(row?.organizer_name).toBeNull();
 		expect(row?.organizer_email).toBe('lone@ntu.edu.sg');
 	});
@@ -142,37 +137,10 @@ describe('admin add/update writes split organizer columns', () => {
 		});
 
 		const row = await env.DB.prepare(
-			"SELECT organizer, organizer_name, organizer_email FROM events WHERE summary = 'NoOrganizer'",
+			"SELECT organizer_name, organizer_email FROM events WHERE summary = 'NoOrganizer'",
 		).first<OrganizerRow>();
-		expect(row?.organizer).toBeNull();
 		expect(row?.organizer_name).toBeNull();
 		expect(row?.organizer_email).toBeNull();
-	});
-
-	it('update clears the legacy organizer column and writes the new ones', async () => {
-		const uid = 'event-legacy-update@ntuas.edu';
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer)
-			 VALUES (?, 'main-cal-001', '20260101T000000Z', '20260401T100000Z', 'Legacy', 'CONFIRMED', ':mailto:old@x.com')`,
-		)
-			.bind(uid)
-			.run();
-
-		const { cookie, csrfToken } = await login();
-		const res = await adminPost(cookie, csrfToken, {
-			action: 'update',
-			uid,
-			summary: 'Legacy',
-			dtstart: '2026-04-01T10:00',
-			organizer_name: 'New Name',
-			organizer_email: 'new@x.com',
-		});
-		expect(res.status).toBe(200);
-
-		const row = await readOrganizer(uid);
-		expect(row?.organizer).toBeNull();
-		expect(row?.organizer_name).toBe('New Name');
-		expect(row?.organizer_email).toBe('new@x.com');
 	});
 });
 
@@ -221,19 +189,6 @@ describe('ICS rendering of ORGANIZER', () => {
 		const ics = await fetchIcs();
 		expect(ics).toContain('ORGANIZER;CN=BadNameWithStuff:mailto:who@x.com');
 	});
-
-	it('falls back to the legacy organizer column when split columns are NULL', async () => {
-		// Defensive fallback path: a row that somehow still has the old prefix-shape
-		// in `organizer` (e.g., a backfill missed it). The renderer should still
-		// emit a well-formed line.
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer)
-			 VALUES ('e-legacy', 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'Legacy', 'CONFIRMED', ';CN=Legacy:mailto:legacy@x.com')`,
-		).run();
-
-		const ics = await fetchIcs();
-		expect(ics).toContain('ORGANIZER;CN=Legacy:mailto:legacy@x.com');
-	});
 });
 
 // ─── JSON /api/events shape ─────────────────────────────────────────────────
@@ -271,109 +226,5 @@ describe('GET /api/events organizer shape', () => {
 		const events = await fetchEventsJson();
 		const ev = events.find((e) => e.uid === 'e-json-none');
 		expect(ev?.organizer).toBeNull();
-	});
-
-	it('does NOT leak the legacy raw organizer string in the JSON payload', async () => {
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer)
-			 VALUES ('e-json-legacy', 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'JsonLegacy', 'CONFIRMED', ':mailto:legacy@x.com')`,
-		).run();
-
-		const events = await fetchEventsJson();
-		const ev = events.find((e) => e.uid === 'e-json-legacy');
-		expect(ev).toBeTruthy();
-		// Pre-refactor this would have surfaced ':mailto:legacy@x.com'. Now the
-		// raw prefix-shape value is dropped (split columns are NULL ⇒ organizer: null).
-		expect(ev?.organizer).toBeNull();
-		expect(JSON.stringify(ev)).not.toContain(':mailto:');
-	});
-});
-
-// ─── Migration 0004 backfill behaviour ──────────────────────────────────────
-
-describe('migration 0004 backfill on legacy rows', () => {
-	// We can't easily re-run migration 0004 from inside the test because applySchema
-	// already ran it, but we can re-execute the backfill UPDATE statements verbatim
-	// against a freshly-inserted legacy row to assert the parse logic.
-	const backfillCnName = `UPDATE events
-		SET organizer_name = SUBSTR(organizer, 5, INSTR(organizer, ':mailto:') - 5),
-		    organizer_email = SUBSTR(organizer, INSTR(organizer, ':mailto:') + 8)
-		WHERE organizer LIKE ';CN=%:mailto:%'
-		  AND organizer_name IS NULL
-		  AND organizer_email IS NULL`;
-
-	const backfillEmailOnly = `UPDATE events
-		SET organizer_email = SUBSTR(organizer, 9)
-		WHERE organizer LIKE ':mailto:%'
-		  AND organizer_name IS NULL
-		  AND organizer_email IS NULL`;
-
-	it('parses ;CN=NAME:mailto:EMAIL into split columns', async () => {
-		const uid = 'e-bf-name';
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer)
-			 VALUES (?, 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'BackfillName', 'CONFIRMED', ';CN=NTUAS:mailto:sec@e.ntu.edu.sg')`,
-		)
-			.bind(uid)
-			.run();
-
-		await env.DB.prepare(backfillCnName).run();
-
-		const row = await readOrganizer(uid);
-		expect(row?.organizer_name).toBe('NTUAS');
-		expect(row?.organizer_email).toBe('sec@e.ntu.edu.sg');
-	});
-
-	it('parses :mailto:EMAIL (email-only) into organizer_email', async () => {
-		const uid = 'e-bf-email';
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer)
-			 VALUES (?, 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'BackfillEmail', 'CONFIRMED', ':mailto:solo@x.com')`,
-		)
-			.bind(uid)
-			.run();
-
-		await env.DB.prepare(backfillEmailOnly).run();
-
-		const row = await readOrganizer(uid);
-		expect(row?.organizer_name).toBeNull();
-		expect(row?.organizer_email).toBe('solo@x.com');
-	});
-
-	it('is idempotent — re-running backfill does not double-overwrite populated rows', async () => {
-		const uid = 'e-bf-idem';
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer, organizer_name, organizer_email)
-			 VALUES (?, 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'BackfillIdem', 'CONFIRMED',
-			         ';CN=KEEP:mailto:keep@x.com', 'AlreadySet', 'already@x.com')`,
-		)
-			.bind(uid)
-			.run();
-
-		await env.DB.prepare(backfillCnName).run();
-		await env.DB.prepare(backfillEmailOnly).run();
-
-		const row = await readOrganizer(uid);
-		// Should not have been touched because organizer_name/email were already non-NULL.
-		expect(row?.organizer_name).toBe('AlreadySet');
-		expect(row?.organizer_email).toBe('already@x.com');
-	});
-
-	it('renders ICS correctly for a row that went through the backfill', async () => {
-		const uid = 'e-bf-render';
-		// Simulate the post-migration state: split columns populated, legacy column
-		// still carrying the old shape.
-		await env.DB.prepare(
-			`INSERT INTO events (uid, calendar_id, dtstamp, dtstart, summary, status, organizer, organizer_name, organizer_email)
-			 VALUES (?, 'main-cal-001', '20260101T000000Z', '20260601T100000Z', 'BackfillRender', 'CONFIRMED',
-			         ';CN=NTUAS:mailto:sec@e.ntu.edu.sg', 'NTUAS', 'sec@e.ntu.edu.sg')`,
-		)
-			.bind(uid)
-			.run();
-
-		const ics = await fetchIcs();
-		// New code path takes precedence; no double-emit of the line.
-		const occurrences = ics.match(/ORGANIZER;CN=NTUAS:mailto:sec@e\.ntu\.edu\.sg/g)?.length ?? 0;
-		expect(occurrences).toBe(1);
 	});
 });

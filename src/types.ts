@@ -33,14 +33,6 @@ export interface Event {
 	class?: string;
 	status?: string;
 	url?: string | null;
-	/**
-	 * Legacy column — pre-0004 storage shape with a leading ICS delimiter
-	 * (`:mailto:...` or `;CN=...:mailto:...`). Kept for one release so a rollback
-	 * is possible; new rows write NULL here and populate organizer_name/email
-	 * instead. The ICS renderer falls back to this only when both split columns
-	 * are NULL.
-	 */
-	organizer?: string | null;
 	organizer_name?: string | null;
 	organizer_email?: string | null;
 	sequence?: number;

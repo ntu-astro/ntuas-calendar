@@ -5,13 +5,16 @@
 	"type": "module",
 	"scripts": {
 		"deploy": "wrangler deploy",
+		"predeploy": "npm run build:client",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
 		"test:e2e": "playwright test",
-		"lint": "tsc --noEmit && eslint src",
-		"format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
-		"format:check": "prettier --check 'src/**/*.ts' 'test/**/*.ts'",
+		"build:client": "tsc -p tsconfig.client.json",
+		"dev:client": "tsc -p tsconfig.client.json --watch",
+		"lint": "tsc --noEmit && tsc --noEmit -p tsconfig.client.json && eslint src client/src",
+		"format": "prettier --write 'src/**/*.ts' 'test/**/*.ts' 'client/src/**/*.ts'",
+		"format:check": "prettier --check 'src/**/*.ts' 'test/**/*.ts' 'client/src/**/*.ts'",
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {

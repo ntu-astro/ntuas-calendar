@@ -1,31 +1,20 @@
 import type { ApiEvent } from './api-types.js';
+import {
+	STATE,
+	activeCategories,
+	eventsData,
+	miniCalDate,
+	currentVisibleMonth,
+	CATEGORY_CONFIG,
+	setEventsData,
+	setMiniCalDate,
+	setCurrentVisibleMonth,
+	setCategoryConfig,
+	type CategoryStyle,
+} from './state.js';
 
 // ─── MODULE-SCOPE STATE (lifted from the former IIFE closure) ───
 const SUB_URL = 'https://calendar.ntuas.com/subscribe';
-
-let eventsData: ApiEvent[] = [];
-let miniCalDate: Date = new Date();
-let currentVisibleMonth: string | null = null; // tracked by IntersectionObserver
-
-// ─── EVENT CATEGORIES (auto-derived from events) ───
-interface CategoryConfig {
-	label?: string;
-	color: string;
-	colorLight: string;
-}
-
-interface CalendarState {
-	renderedStart: Date | null;
-	renderedEnd: Date | null;
-	weekElements: Map<string, HTMLElement>;
-	BUFFER_WEEKS: number;
-	MAX_WEEKS: number;
-	observers: {
-		sentinel?: IntersectionObserver;
-		header?: IntersectionObserver;
-	};
-	updateVisibleMonth?: () => void;
-}
 
 const NOTION_PALETTE: ReadonlyArray<{ color: string; colorLight: string }> = [
 	{ color: '#337ea9', colorLight: '#ddebf1' }, // blue
@@ -37,9 +26,7 @@ const NOTION_PALETTE: ReadonlyArray<{ color: string; colorLight: string }> = [
 	{ color: '#cb912f', colorLight: '#fbf3db' }, // yellow
 	{ color: '#64473a', colorLight: '#e9e5e3' }  // brown
 ];
-const DEFAULT_CATEGORY: CategoryConfig = { color: '#787774', colorLight: '#ebeced' };
-let CATEGORY_CONFIG: Record<string, CategoryConfig> = {};
-const activeCategories = new Set<string>();
+const DEFAULT_CATEGORY: CategoryStyle = { color: '#787774', colorLight: '#ebeced' };
 
 function buildCategoriesFromEvents(): void {
 	const seen = new Map<string, string>();
@@ -51,13 +38,14 @@ function buildCategoriesFromEvents(): void {
 		if (!seen.has(key)) seen.set(key, raw);
 	}
 	const sortedKeys = [...seen.keys()].sort();
-	CATEGORY_CONFIG = {};
+	const config: Record<string, CategoryStyle> = {};
 	activeCategories.clear();
 	sortedKeys.forEach((key, i) => {
 		const palette = NOTION_PALETTE[i % NOTION_PALETTE.length];
-		CATEGORY_CONFIG[key] = { label: seen.get(key), ...palette };
+		config[key] = { label: seen.get(key), ...palette };
 		activeCategories.add(key);
 	});
+	setCategoryConfig(config);
 }
 
 function getCategoryKey(evt: ApiEvent): string | null {
@@ -66,7 +54,7 @@ function getCategoryKey(evt: ApiEvent): string | null {
 	return first && CATEGORY_CONFIG[first] ? first : null;
 }
 
-function getCategoryStyle(evt: ApiEvent): CategoryConfig {
+function getCategoryStyle(evt: ApiEvent): CategoryStyle {
 	const key = getCategoryKey(evt);
 	return key ? CATEGORY_CONFIG[key] : DEFAULT_CATEGORY;
 }
@@ -123,14 +111,7 @@ function renderCategoryFilter(): void {
 	}
 }
 
-const STATE: CalendarState = {
-	renderedStart: null,   // Sunday Date of first rendered week
-	renderedEnd: null,     // Sunday Date of last rendered week
-	weekElements: new Map<string, HTMLElement>(),    // weekKey string -> DOM element
-	BUFFER_WEEKS: 16,
-	MAX_WEEKS: 60,
-	observers: {},
-};
+// STATE is now imported from state.js
 
 // ─── UTILITY FUNCTIONS ───
 
@@ -201,7 +182,7 @@ async function initCalendar(): Promise<void> {
 		const toISO = new Date(today.getFullYear() + 1, 11, 31).toISOString().slice(0, 10);
 		const res = await fetch(`/api/events?from=${fromISO}&to=${toISO}`);
 		if (res.ok) {
-			eventsData = await res.json() as ApiEvent[];
+			setEventsData(await res.json() as ApiEvent[]);
 		} else {
 			document.getElementById('errorBanner')!.classList.add('visible');
 		}
@@ -590,7 +571,7 @@ function setupMonthHeaderObserver(): void {
 			const monthKey = getMonthKey(thu);
 
 			if (monthKey !== currentVisibleMonth) {
-				currentVisibleMonth = monthKey;
+				setCurrentVisibleMonth(monthKey);
 				const md = monthKeyToDate(monthKey);
 				document.getElementById('monthLabel')!.textContent = formatMonthYear(md);
 
@@ -601,7 +582,7 @@ function setupMonthHeaderObserver(): void {
 				});
 
 				// Sync mini-cal
-				miniCalDate = new Date(md);
+				setMiniCalDate(new Date(md));
 				renderMiniCalendar();
 			}
 		}
@@ -740,12 +721,12 @@ function attachButtonHandlers(): void {
 	});
 
 	document.getElementById('miniCalPrev')!.addEventListener('click', () => {
-		miniCalDate = new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() - 1, 1);
+		setMiniCalDate(new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() - 1, 1));
 		renderMiniCalendar();
 	});
 
 	document.getElementById('miniCalNext')!.addEventListener('click', () => {
-		miniCalDate = new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() + 1, 1);
+		setMiniCalDate(new Date(miniCalDate.getFullYear(), miniCalDate.getMonth() + 1, 1));
 		renderMiniCalendar();
 	});
 
@@ -980,7 +961,7 @@ function renderMiniCalendar(): void {
 		el.textContent = String(dayNum);
 		el.addEventListener('click', () => {
 			const targetDate = new Date(year, month - 1, dayNum);
-			miniCalDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
 			renderMiniCalendar();
 			clearEventDetails();
 			scrollToDate(targetDate, 'smooth');
@@ -1013,7 +994,7 @@ function renderMiniCalendar(): void {
 		const dayNum = i;
 		el.addEventListener('click', () => {
 			const targetDate = new Date(year, month + 1, dayNum);
-			miniCalDate = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
 			renderMiniCalendar();
 			clearEventDetails();
 			scrollToDate(targetDate, 'smooth');

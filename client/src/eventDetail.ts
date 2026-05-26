@@ -1,7 +1,8 @@
 import type { ApiEvent } from './api-types.js';
-import { eventsData, activeCategories, CATEGORY_CONFIG } from './state.js';
-import { parseDtstart, dtToDateStr } from './dates.js';
+import { eventsData } from './state.js';
+import { parseDtstart } from './dates.js';
 import { scrollToDate } from './weekGrid.js';
+import { getCategoryStyle, isCategoryVisible } from './categories.js';
 
 export function escapeHTML(str: string): string {
 	return str.replace(/[&<>'"]/g, tag => ({
@@ -103,15 +104,6 @@ function buildEventCard(enriched: {
 }
 
 export function showEventDetails(evt: ApiEvent): void {
-	const rawKey = evt.categories || null;
-	const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
-	const style = (key && CATEGORY_CONFIG[key]) || { color: '#787774', colorLight: '#ebeced' };
-	const isCategoryVisible = key === null || activeCategories.has(key);
-
-	// Suppress unused variable warnings until categories.ts is extracted
-	void style;
-	void isCategoryVisible;
-	void dtToDateStr;
 
 	const parsed = parseDtstart(evt.dtstart);
 	let endParsed: Date | null = null;
@@ -148,11 +140,7 @@ function getUpcomingEvents(now: Date): (ApiEventWithParsedAndAllDay & { parsedDa
 			return { ...e, parsedDate: parsed, isAllDay: !!(e.dtstart && !e.dtstart.includes('T')) } as ApiEventWithParsedAndAllDay;
 		})
 		.filter((e): e is ApiEventWithParsedAndAllDay & { parsedDate: Date } => e.parsedDate !== null)
-		.filter(evt => {
-			const rawKey = evt.categories || null;
-			const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
-			return key === null || activeCategories.has(key);
-		})
+		.filter(isCategoryVisible)
 		.filter(e => {
 			const eventDay = new Date(e.parsedDate);
 			eventDay.setHours(0, 0, 0, 0);
@@ -165,9 +153,7 @@ function getUpcomingEvents(now: Date): (ApiEventWithParsedAndAllDay & { parsedDa
 }
 
 function createUpcomingEventItem(e: ApiEventWithParsedAndAllDay & { parsedDate: Date }): HTMLDivElement {
-	const rawKey = e.categories || null;
-	const key = rawKey ? String(rawKey).toLowerCase().split(/[,;]/)[0].trim() : null;
-	const style = (key && CATEGORY_CONFIG[key]) || { color: '#787774', colorLight: '#ebeced' };
+	const style = getCategoryStyle(e);
 	void style;
 
 	const dateDisplay = e.isAllDay

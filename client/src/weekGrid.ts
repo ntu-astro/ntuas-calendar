@@ -2,8 +2,6 @@ import type { ApiEvent } from './api-types.js';
 import {
 	STATE,
 	eventsData,
-	activeCategories,
-	CATEGORY_CONFIG,
 	currentVisibleMonth,
 	setCurrentVisibleMonth,
 	setMiniCalDate,
@@ -20,25 +18,12 @@ import {
 } from './dates.js';
 import { showEventDetails, clearEventDetails } from './eventDetail.js';
 import { renderMiniCalendar } from './miniCal.js';
+import { getCategoryStyle, isCategoryVisible } from './categories.js';
 
 const STICKY_OFFSET = 112;
 const SMOOTH_SCROLL_VIEWPORT_RATIO = 1.5;
 
-function getCategoryKey(evt: ApiEvent): string | null {
-	if (!evt || !evt.categories) return null;
-	const first = String(evt.categories).toLowerCase().split(/[,;]/)[0].trim();
-	return first && CATEGORY_CONFIG[first] ? first : null;
-}
 
-function getCategoryStyle(evt: ApiEvent): { color: string; colorLight: string } {
-	const key = getCategoryKey(evt);
-	return key ? CATEGORY_CONFIG[key] : { color: '#787774', colorLight: '#ebeced' };
-}
-
-function isCategoryVisible(evt: ApiEvent): boolean {
-	const key = getCategoryKey(evt);
-	return key === null || activeCategories.has(key);
-}
 
 export function insertWeekRowSorted(row: HTMLDivElement, weekKey: string): void {
 	const container = document.getElementById('scrollContainer')!;

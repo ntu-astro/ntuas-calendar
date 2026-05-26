@@ -143,12 +143,12 @@ describe('dates utilities', () => {
 	describe('formatMonthYear', () => {
 		it('formats correctly (e.g. "January 2026")', () => {
 			const date = new Date(2026, 0, 15);
-			expect(formatMonthYear(date)).toMatch(/January\s+2026/);
+			expect(formatMonthYear(date, 'en-US')).toMatch(/January\s+2026/);
 		});
 
 		it('formats December correctly', () => {
 			const date = new Date(2025, 11, 1);
-			expect(formatMonthYear(date)).toMatch(/December\s+2025/);
+			expect(formatMonthYear(date, 'en-US')).toMatch(/December\s+2025/);
 		});
 	});
 
@@ -166,6 +166,17 @@ describe('dates utilities', () => {
 			}
 		});
 
+		it('parses iso string lacking a trailing Z suffix cleanly', () => {
+			const result = parseDtstart('20260601T100000');
+			expect(result).not.toBeNull();
+			if (result) {
+				expect(isNaN(result.getTime())).toBe(false);
+				expect(result.getFullYear()).toBe(2026);
+				expect(result.getMonth()).toBe(5); // June is 5
+				expect(result.getDate()).toBe(1);
+			}
+		});
+
 		it('parses basic YYYYMMDD date cleanly', () => {
 			const result = parseDtstart('20260601');
 			expect(result).not.toBeNull();
@@ -178,6 +189,13 @@ describe('dates utilities', () => {
 				expect(result.getMinutes()).toBe(0);
 				expect(result.getSeconds()).toBe(0);
 			}
+		});
+
+		it('returns null for malformed strings and invalid dates safely', () => {
+			expect(parseDtstart('invalid-date-string')).toBeNull();
+			expect(parseDtstart('20269999')).toBeNull();
+			expect(parseDtstart('20260601T999999Z')).toBeNull();
+			expect(parseDtstart('99999999T999999')).toBeNull();
 		});
 	});
 

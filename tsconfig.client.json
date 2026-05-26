@@ -1,0 +1,20 @@
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["DOM", "DOM.Iterable", "ES2022"],
+		"strict": true,
+		"noEmit": false,
+		"outDir": "public/dist",
+		"rootDir": "client/src",
+		"sourceMap": false,
+		"declaration": false,
+		"skipLibCheck": true,
+		"isolatedModules": true,
+		"forceConsistentCasingInFileNames": true,
+		"useDefineForClassFields": true
+	},
+	"include": ["client/src/**/*.ts"],
+	"exclude": ["node_modules"]
+}

@@ -185,3 +185,6 @@ remote_backup.sql
 # Local Claude Code scratch (worktrees, skill docs)
 .claude/worktrees/
 docs/superpowers/
+
+# Compiled client bundle (output of `npm run build:client`)
+public/dist/

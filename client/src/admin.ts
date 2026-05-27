@@ -12,8 +12,8 @@ async function initVenues(): Promise<void> {
 	try {
 		const res = await fetch('/data/venues.json');
 		if (!res.ok) throw new Error('HTTP ' + res.status);
-		const data = (await res.json()) as { venues: Venue[] };
-		VENUES = data.venues;
+		const data = await res.json();
+		VENUES = (data && Array.isArray(data.venues)) ? data.venues : [];
 	} catch (e) {
 		console.error('Failed to load venues:', e);
 		VENUES = [];
@@ -58,10 +58,14 @@ const EVENTS_PER_PAGE = 10;
 async function loadEvents(): Promise<void> {
 	try {
 		const res = await fetch('/api/events?_t=' + Date.now());
-		allEvents = (await res.json()) as ApiEvent[];
+		if (!res.ok) throw new Error('HTTP ' + res.status);
+		const data = await res.json();
+		if (!Array.isArray(data)) throw new Error('Invalid response structure');
+		allEvents = data as ApiEvent[];
 		currentPage = 1;
 		renderEventsPage();
-	} catch {
+	} catch (err) {
+		console.error('Failed to load events:', err);
 		const container = document.getElementById('events-container')!;
 		container.textContent = 'Error loading events.';
 	}

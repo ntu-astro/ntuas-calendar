@@ -684,7 +684,7 @@ exports[`UI byte snapshots > ADMIN_HTML — authenticated GET /admin 1`] = `
     </div>
   </div>
 
-  <script src="/admin/admin.js" defer></script>
+  <script type="module" src="/dist/admin.js"></script>
 </body>
 </html>"
 `;

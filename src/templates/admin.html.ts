@@ -681,6 +681,6 @@ export const ADMIN_HTML = (csrfToken: string) => `
     </div>
   </div>
 
-  <script src="/admin/admin.js" defer></script>
+  <script type="module" src="/dist/admin.js"></script>
 </body>
 </html>`;

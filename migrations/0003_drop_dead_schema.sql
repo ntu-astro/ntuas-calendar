@@ -11,4 +11,8 @@
 
 DROP TABLE IF EXISTS timezone_rules;
 DROP TABLE IF EXISTS event_recurrence;
+-- Add attendee first in case this is a fresh setup where 0001_initial.sql didn't have it,
+-- preventing ALTER TABLE DROP COLUMN from failing with "no such column".
+-- (On existing databases where 0003 is already applied, this migration will not run).
+ALTER TABLE event_alarms ADD COLUMN attendee TEXT;
 ALTER TABLE event_alarms DROP COLUMN attendee;

@@ -15,7 +15,8 @@
 		"lint": "tsc --noEmit && tsc --noEmit -p tsconfig.client.json && eslint src client/src",
 		"format": "prettier --write 'src/**/*.ts' 'test/**/*.ts' 'client/src/**/*.ts'",
 		"format:check": "prettier --check 'src/**/*.ts' 'test/**/*.ts' 'client/src/**/*.ts'",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"setup": "node scripts/setup-db.mjs"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.16.9",

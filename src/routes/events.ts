@@ -1,5 +1,5 @@
 import { parseRange } from '../lib/range';
-import type { ApiEvent } from '../../client/src/api-types';
+import type { ApiEvent } from '../types';
 
 interface EventRow {
 	uid: string;

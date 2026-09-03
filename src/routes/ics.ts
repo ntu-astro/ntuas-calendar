@@ -81,7 +81,7 @@ export async function handleIcs(url: URL, _request: Request, env: Env): Promise<
 			icsLines.push(`DTSTART:${event.dtstart}`);
 			if (event.dtend) icsLines.push(`DTEND:${event.dtend}`);
 		}
-		if (event.duration) icsLines.push(`DURATION:${event.duration}`);
+		if (!event.dtend && event.duration) icsLines.push(`DURATION:${event.duration}`);
 		if (event.created) icsLines.push(`CREATED:${event.created}`);
 		if (event.last_modified) icsLines.push(`LAST-MODIFIED:${event.last_modified}`);
 		if (event.summary) icsLines.push(`SUMMARY:${sanitizeIcsValue(event.summary)}`);

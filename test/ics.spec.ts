@@ -188,4 +188,23 @@ describe('ICS output safety', () => {
 		const body = await res.text();
 		expect(body).toContain('DESCRIPTION:Line1\\nLine2');
 	});
+
+	it('enforces DTEND and DURATION mutual exclusivity per RFC 5545 §3.6.1', async () => {
+		// Event with DURATION but no DTEND -> DURATION emitted
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, duration, summary, status) VALUES ('dur-only@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', 'PT1H', 'Duration Event', 'CONFIRMED')",
+		).run();
+
+		// Event with both DTEND and DURATION -> only DTEND emitted, DURATION suppressed
+		await env.DB.prepare(
+			"INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, duration, summary, status) VALUES ('both-evt@ntuas.edu', 'main-cal-001', '20260101T000000Z', '20260201T100000Z', '20260201T120000Z', 'PT2H', 'Both Event', 'CONFIRMED')",
+		).run();
+
+		const res = await req(`${BASE}/subscribe?from=2020-01-01&to=2030-12-31`);
+		const body = await res.text();
+
+		expect(body).toContain('DURATION:PT1H');
+		expect(body).toContain('DTEND:20260201T120000Z');
+		expect(body).not.toContain('DURATION:PT2H');
+	});
 });

@@ -1,13 +1,12 @@
 # Entity Relationship (ER) Diagram
 
-This document describes the database entities and relationships defined in `schema.sql`.
+This document describes the database entities and relationships defined in the D1 database (managed via migrations in `migrations/`).
 
 ## Mermaid ERD
 
 ```mermaid
 erDiagram
     CALENDARS ||--o{ EVENTS : "has"
-    CALENDARS ||--o{ TIMEZONE_RULES : "defines"
     EVENTS ||--o{ EVENT_ALARMS : "triggers"
     EVENTS ||--o{ EVENT_ATTACHMENTS : "includes"
 
@@ -36,7 +35,8 @@ erDiagram
         text class
         text status
         text url
-        text organizer
+        text organizer_name
+        text organizer_email
         integer sequence
         text created
         text last_modified
@@ -61,18 +61,6 @@ erDiagram
         integer repeat
     }
 
-    TIMEZONE_RULES {
-        integer id PK
-        text calendar_id FK
-        text tzid
-        text type
-        text dtstart
-        text tzoffsetfrom
-        text tzoffsetto
-        text rrule
-        text tzname
-    }
-
     ADMIN_SESSIONS {
         text token PK
         text csrf_token
@@ -91,13 +79,12 @@ erDiagram
 ## Relationship Summary
 
 - `calendars (1) -> (many) events` via `events.calendar_id -> calendars.id`
-- `calendars (1) -> (many) timezone_rules` via `timezone_rules.calendar_id -> calendars.id`
 - `events (1) -> (many) event_alarms` via `event_alarms.event_uid -> events.uid`
 - `events (1) -> (many) event_attachments` via `event_attachments.event_uid -> events.uid`
 
 ## Notes
 
-- Foreign-key relations use `ON DELETE CASCADE`, so deleting a calendar removes dependent events/timezone rules, and deleting an event removes its alarms/attachments.
+- Foreign-key relations use `ON DELETE CASCADE`, so deleting a calendar removes dependent events, and deleting an event removes its alarms/attachments.
 - `admin_sessions` and `login_attempts` are operational security tables and are intentionally independent from calendar content entities.
 
 ## Alternative Diagram Source (DBML-Style)
@@ -132,7 +119,8 @@ events [icon: clock, color: green] {
   class string
   status string
   url string
-  organizer string
+  organizer_name string
+  organizer_email string
   sequence integer
   created string
   last_modified string
@@ -157,18 +145,6 @@ event_alarms [icon: bell, color: orange] {
   repeat integer
 }
 
-timezone_rules [icon: globe, color: purple] {
-  id integer pk
-  calendar_id string fk
-  tzid string
-  type string
-  dtstart string
-  tzoffsetfrom string
-  tzoffsetto string
-  rrule string
-  tzname string
-}
-
 // Admin domain
 admin_sessions [icon: shield, color: red] {
   token string pk
@@ -188,5 +164,4 @@ login_attempts [icon: alert-triangle, color: yellow] {
 events.calendar_id > calendars.id
 event_attachments.event_uid > events.uid
 event_alarms.event_uid > events.uid
-timezone_rules.calendar_id > calendars.id
 ```

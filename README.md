@@ -24,20 +24,24 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
 ## Setup & Local Development
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Log in to Cloudflare:**
+
    ```bash
    npx wrangler login
    ```
 
 3. **Create the D1 Database:**
+
    ```bash
    npx wrangler d1 create calendar_db
    ```
-   *Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section.*
+
+   _Take note of the `database_name` and `database_id` returned in the output and update your `wrangler.jsonc` file with these values under the `d1_databases` section._
 
 4. **Initialize Database Schema:**
    The schema is managed by wrangler migrations in [`migrations/`](./migrations/) — see [`migrations/README.md`](./migrations/README.md) for conventions.
@@ -51,6 +55,7 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    ```
 
    Then seed the required calendar record and optional sample events:
+
    ```bash
    # For local development
    npx wrangler d1 execute calendar_db --local --file=./seed.sql
@@ -59,12 +64,14 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
    npx wrangler d1 execute calendar_db --remote --file=./seed.sql
    ```
 
-   *The seed inserts a calendar record with ID `main-cal-001`, which the worker expects. If you prefer to insert it manually:*
+   _The seed inserts a calendar record with ID `main-cal-001`, which the worker expects. If you prefer to insert it manually:_
+
    ```bash
    npx wrangler d1 execute calendar_db --local --command="INSERT INTO calendars (id, x_wr_calname, x_wr_timezone) VALUES ('main-cal-001', 'NTUAS Events', 'Asia/Singapore');"
    ```
 
    **Alternative: clone production data to local** (instead of using seed.sql):
+
    ```bash
    # Export remote database into a gitignored snapshot file
    npx wrangler d1 export calendar_db --remote --output=./remote_backup.sql
@@ -81,18 +88,27 @@ A Cloudflare Worker-based system that serves an ICS calendar subscription and a 
 
    **For Local Development:**
    Create a `.dev.vars` file in the root of your project:
+
    ```bash
    echo "ADMIN_PASSWORD=your_local_password" > .dev.vars
    ```
-   *(Ensure `.dev.vars` is added to your `.gitignore`)*
+
+   _(Ensure `.dev.vars` is added to your `.gitignore`)_
 
    **For Production:**
    Set the secret securely via Wrangler:
+
    ```bash
    npx wrangler secret put ADMIN_PASSWORD
    ```
 
-6. **Start the local server:**
+6. **Build client assets:**
+
+   ```bash
+   npm run build:client
+   ```
+
+7. **Start the local server:**
    ```bash
    npm run dev
    ```
@@ -118,6 +134,7 @@ npm test
 ```
 
 The test suite covers:
+
 - `GET /api/events` — response format, headers (Content-Type, Cache-Control, CORS), `?from=&to=` range filtering and validation
 - `POST /admin/login` — correct/wrong password, rate limiting (429 after 5 failures), secure cookie attributes
 - `GET /admin` — unauthenticated redirect, authenticated dashboard, security headers
@@ -145,41 +162,57 @@ npm run deploy
 ## User Guide
 
 ### 1. Admin Dashboard Usage
+
 The Admin Dashboard located at `/admin` is your control center for managing the calendar.
+
 - **Logging In**: Access the dashboard and log in using the `ADMIN_PASSWORD` defined in your environment secrets.
-- **Creating & Editing Events**: Fill out the event details such as title, location, category, and time. 
-- **Timed vs. All-Day Events**: 
-  - *Timed Events*: Specify an exact start and end time (e.g., a meeting from 2:00 PM to 3:00 PM).
-  - *All-Day Events*: Toggle "All Day Event" to span the entire day without specific hours. If an end date is not provided, it defaults to a single day.
+- **Creating & Editing Events**: Fill out the event details such as title, location, category, and time.
+- **Timed vs. All-Day Events**:
+  - _Timed Events_: Specify an exact start and end time (e.g., a meeting from 2:00 PM to 3:00 PM).
+  - _All-Day Events_: Toggle "All Day Event" to span the entire day without specific hours. If an end date is not provided, it defaults to a single day.
 - **Deleting Events**: Existing events listed on the dashboard can be deleted by entering your admin password in the deletion prompt.
 
 ### 2. Calendar Subscription
+
 Users can subscribe to the calendar so that events sync directly to their personal devices.
+
 1. Navigate to the public calendar page (`/`).
 2. Click the **"Copy Subscription URL"** button or manually copy the `/subscribe` link.
 3. Add the copied URL to your preferred calendar application:
-   - **Apple Calendar**: Go to *File > New Calendar Subscription...* and paste the URL.
-   - **Google Calendar**: On the left panel under "Other calendars," click the `+` icon > *From URL* and paste the link.
-   - **Outlook**: Go to *Add Calendar > Subscribe from web* and paste the URL.
+   - **Apple Calendar**: Go to _File > New Calendar Subscription..._ and paste the URL.
+   - **Google Calendar**: On the left panel under "Other calendars," click the `+` icon > _From URL_ and paste the link.
+   - **Outlook**: Go to _Add Calendar > Subscribe from web_ and paste the URL.
 
 ### 3. Public View
+
 The root page (`/`) serves as a public-facing, responsive web calendar for your users.
+
 - **Interactive Calendar Widget**: Users can view the current month, shift through previous or upcoming months using the navigation arrows, and click on highlighted dates to view specific event details.
 - **Upcoming Events**: A quick-glance list of the closest upcoming events is prominently displayed alongside the calendar for easy access.
 
 ### 4. Important Notes
+
 - **ICS Sync Latency**: Please note that third-party calendar applications check for updates at their own internal intervals. While Apple Calendar allows you to set the refresh frequency (e.g., every 5 minutes), **Google Calendar may take up to 12-24 hours to reflect new updates or changes**. This latency is controlled by Google and cannot be forced from the application.
 
 ## Commands Reference
 
 <!-- AUTO-GENERATED from package.json scripts -->
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start local development server at `http://localhost:8787` |
-| `npm run start` | Alias for `npm run dev` |
-| `npm run deploy` | Build and deploy the Worker to Cloudflare |
-| `npm test` | Run the test suite (Vitest with Cloudflare Workers runtime) |
-| `npm run cf-typegen` | Generate TypeScript types from `wrangler.jsonc` bindings |
+
+| Command                | Description                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `npm run dev`          | Start local development server at `http://localhost:8787`               |
+| `npm run start`        | Alias for `npm run dev`                                                 |
+| `npm run build:client` | Compile client TypeScript (`client/src/`) into `public/dist/`           |
+| `npm run dev:client`   | Watch and compile client TypeScript on change                           |
+| `npm run deploy`       | Build client and deploy Worker to Cloudflare                            |
+| `npm test`             | Run test suite (Vitest with Cloudflare Workers runtime)                 |
+| `npm run test:e2e`     | Run Playwright visual regression tests                                  |
+| `npm run lint`         | Typecheck backend and client, and run ESLint                            |
+| `npm run format`       | Format codebase with Prettier                                           |
+| `npm run format:check` | Verify codebase formatting with Prettier                                |
+| `npm run cf-typegen`   | Generate TypeScript types from `wrangler.jsonc` bindings                |
+| `npm run setup`        | Reset local D1 state, apply migrations, seed events, and generate types |
+
 <!-- END AUTO-GENERATED -->
 
 ## Security

@@ -65,3 +65,5 @@ export interface EventAttachment {
 export interface LoginAttemptCount {
 	cnt: number;
 }
+
+export type { ApiEvent } from '../shared/contract';

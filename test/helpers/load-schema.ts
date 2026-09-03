@@ -1,6 +1,6 @@
 // Vite's `?raw` import returns the file contents as a string at build time,
 // so this works inside the Workers runtime where Node's `fs` is unavailable.
-// migrations/0001_initial.sql is the canonical schema source (schema.sql is deprecated).
+// migrations/0001_initial.sql is the canonical schema source.
 import schemaSql from '../../migrations/0001_initial.sql?raw';
 // Migration 0004 adds the split organizer columns. The 0002/0003 migrations
 // only mutate data or drop dead schema objects that 0001 never declares, so
@@ -10,7 +10,7 @@ import splitOrganizerSql from '../../migrations/0004_split_organizer_columns.sql
 import dropLegacyOrganizerSql from '../../migrations/0005_drop_legacy_organizer.sql?raw';
 
 /**
- * Load the production schema.sql, rewrite it to be safe for repeated test runs,
+ * Load initial schema statements, rewrite them to be safe for repeated test runs,
  * and return the list of executable statements.
  *
  * Rewrites applied:

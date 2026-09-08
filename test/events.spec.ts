@@ -2,6 +2,7 @@ import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { applySchema } from './helpers/load-schema';
 import { BASE, req, runSQL } from './helpers/admin';
+import seedSql from '../seed.sql?raw';
 
 // ─── Setup ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,31 @@ describe('GET /api/events', () => {
 	it('returns 400 when from > to', async () => {
 		const res = await req(`${BASE}/api/events?from=2026-12-31&to=2026-01-01`);
 		expect(res.status).toBe(400);
+	});
+
+	it('seed fixtures cover the September 2026 reference month', async () => {
+		// Load the production seed into the in-memory test DB, exactly as
+		// `npm run setup` seeds local dev, so the fixtures are exercised end to end.
+		const seedStatements = seedSql
+			.replace(/--[^\n]*/g, '')
+			.split(';')
+			.map((s) => s.trim())
+			.filter((s) => s.length > 0)
+			.filter((s) => !/^INSERT INTO calendars\b/i.test(s));
+
+		for (const stmt of seedStatements) {
+			await env.DB.prepare(stmt).run();
+		}
+
+		const res = await req(`${BASE}/api/events?from=2026-09-01&to=2026-09-30`);
+		const events = (await res.json()) as Array<{ dtstart: string; categories: string | null }>;
+
+		const september = events.filter((e) => e.dtstart?.startsWith('202609'));
+		expect(september.length).toBeGreaterThanOrEqual(3);
+
+		// At least two distinct categories, so the filter UI has something to toggle.
+		const categories = new Set(september.map((e) => e.categories).filter(Boolean));
+		expect(categories.size).toBeGreaterThanOrEqual(2);
 	});
 
 	it('returns a setup hint when the events table does not exist', async () => {

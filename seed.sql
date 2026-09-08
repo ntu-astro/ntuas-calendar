@@ -37,3 +37,20 @@ VALUES ('event-20f125f3-2838-4aeb-b650-3836d78704a3@ntuas.edu', 'DISPLAY', '-P1D
 -- 4. Add an Attachment (ATTACH)
 INSERT INTO event_attachments (event_uid, uri, fmttype)
 VALUES ('event-20f125f3-2838-4aeb-b650-3836d78704a3@ntuas.edu', 'https://ntuas.com/ntuas-calendar/seeds/NTUAS-EQP-MN-001.pdf', 'application/pdf');
+
+-- ─── September 2026 reference fixtures ───
+-- Fixed dates on purpose: e2e tests freeze the clock to 2026-09-08 and assert
+-- against these. Changing these dates will break e2e/landing.spec.ts.
+
+INSERT INTO events (uid, calendar_id, dtstamp, dtstart, dtend, summary, description, location, status, sequence, categories)
+VALUES
+  ('seed-sep-04', 'main-cal-001', '20260901T000000Z', '20260904T110000Z', '20260904T130000Z',
+   'Stargazing and Telescope Sharing', 'Seed fixture.', 'LHN-TR+07', 'CONFIRMED', 0, 'Club Events'),
+  ('seed-sep-12', 'main-cal-001', '20260901T000000Z', '20260912T000000Z', '20260913T000000Z',
+   'Total Solar Eclipse', 'Seed fixture, all-day.', '', 'CONFIRMED', 0, 'Astronomical Events'),
+  ('seed-sep-21a', 'main-cal-001', '20260901T000000Z', '20260921T090000Z', '20260921T100000Z',
+   'Committee Meeting', 'Seed fixture, overflow 1 of 3.', 'TR+11', 'CONFIRMED', 0, 'Club Events'),
+  ('seed-sep-21b', 'main-cal-001', '20260901T000000Z', '20260921T110000Z', '20260921T120000Z',
+   'Perseids Debrief', 'Seed fixture, overflow 2 of 3.', 'TR+11', 'CONFIRMED', 0, 'Astronomical Events'),
+  ('seed-sep-21c', 'main-cal-001', '20260901T000000Z', '20260921T140000Z', '20260921T150000Z',
+   'Outreach Planning', 'Seed fixture, overflow 3 of 3.', 'TR+11', 'CONFIRMED', 0, 'Club Events');

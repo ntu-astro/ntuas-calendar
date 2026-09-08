@@ -724,6 +724,7 @@
             line-height: 1;
             margin-bottom: 4px;
             align-self: flex-end;
+            white-space: nowrap;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -742,8 +743,15 @@
 
         .day-number.first-of-month,
         .today-marker.first-of-month {
-            font-weight: 700;
             color: var(--color-ink);
+        }
+
+        .first-of-month .fom-month {
+            font-weight: 700;
+        }
+
+        .first-of-month .fom-day {
+            font-weight: 400;
         }
 
         /* Today badge — DESIGN.md semantic-error red, rounded.sm */

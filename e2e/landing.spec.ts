@@ -54,3 +54,14 @@ test.describe('Landing page — weekday header', () => {
 		await expect(today).toHaveCSS('color', 'rgb(50, 48, 44)');
 	});
 });
+
+test.describe('Landing page — first of month', () => {
+	test('the first of the month shows the full month name with split weights', async ({ page }) => {
+		await gotoFrozen(page);
+
+		const label = page.locator('.day-number.first-of-month', { hasText: 'September' }).first();
+		await expect(label).toContainText('September 1');
+		await expect(label.locator('.fom-month')).toHaveCSS('font-weight', '700');
+		await expect(label.locator('.fom-day')).toHaveCSS('font-weight', '400');
+	});
+});

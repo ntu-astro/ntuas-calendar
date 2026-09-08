@@ -108,8 +108,14 @@ function createDayNumberElement(cellDate: Date, isToday: boolean): HTMLSpanEleme
 	const dayNum = cellDate.getDate();
 	if (dayNum === 1) {
 		numEl.classList.add('first-of-month');
-		const shortMonth = cellDate.toLocaleString('default', { month: 'short' });
-		numEl.textContent = `${shortMonth} ${dayNum}`;
+		// Notion inverts the emphasis here: month word bold, numeral regular.
+		const month = document.createElement('span');
+		month.className = 'fom-month';
+		month.textContent = cellDate.toLocaleString('default', { month: 'long' });
+		const day = document.createElement('span');
+		day.className = 'fom-day';
+		day.textContent = ` ${dayNum}`;
+		numEl.append(month, day);
 	} else {
 		numEl.textContent = String(dayNum);
 	}

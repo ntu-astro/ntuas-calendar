@@ -147,3 +147,13 @@ test.describe('Landing page — keyboard', () => {
 		await expect(page.locator('.search-overlay input')).toHaveValue('t');
 	});
 });
+
+test.describe('Landing page — dark mode', () => {
+	test('dark mode follows the system preference', async ({ browser }) => {
+		const ctx = await browser.newContext({ colorScheme: 'dark' });
+		const page = await ctx.newPage();
+		await gotoFrozen(page);
+		await expect(page.locator('body')).not.toHaveCSS('background-color', 'rgb(255, 255, 255)');
+		await ctx.close();
+	});
+});

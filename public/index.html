@@ -102,6 +102,52 @@
             --header-height: calc(var(--topbar-height) + var(--month-heading-height) + var(--daynames-height));
         }
 
+        /* Dark palette — measured from Notion Calendar's dark design-system bundle
+           (its --nds-* and --public-* tokens plus rendered inline styles). Only the
+           tokens that change are redefined; aliases and shared semantic tokens
+           resolve through these primitives automatically. */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                /* Accent / primary — Notion dark-mode link blue */
+                --color-primary: #348de4;
+                --color-primary-pressed: #0076db;
+                --link-blue: #348de4;
+                --link-blue-pressed: #0076db;
+
+                /* Surfaces */
+                --color-canvas: #191919;         /* page background */
+                --color-surface: #202020;        /* sidebar/wash */
+                --color-surface-soft: #252525;   /* elevated surface */
+
+                /* Borders */
+                --color-hairline: rgba(255, 255, 255, 0.13);
+                --color-hairline-soft: rgba(255, 255, 255, 0.055);
+                --color-hairline-strong: #4d4d4d;
+
+                /* Text hierarchy */
+                --color-ink: #ffffff;
+                --color-charcoal: rgba(255, 255, 255, 0.81);
+                --color-slate: rgba(255, 255, 255, 0.565);
+                --color-steel: rgba(255, 255, 255, 0.445);
+                --color-stone: rgba(255, 255, 255, 0.283);
+                --color-muted: rgba(255, 255, 255, 0.13);
+
+                /* Hover / grid / weekend */
+                --bg-hover: rgba(255, 255, 255, 0.095);
+                --grid-line: #303030;
+                --weekend-tint: #202020;
+
+                /* Pastel selection/chip tints → dark elevated equivalents */
+                --tint-peach: rgba(233, 126, 37, 0.2);
+                --tint-rose: rgba(220, 76, 145, 0.22);
+                --tint-mint: rgba(45, 153, 100, 0.2);
+                --tint-lavender: rgba(155, 97, 211, 0.18);
+                --tint-sky: rgba(51, 126, 169, 0.2);
+                --tint-yellow: rgba(179, 129, 61, 0.2);
+                --tint-cream: rgba(184, 101, 69, 0.25);
+            }
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -568,7 +614,7 @@
             border: none;
             background: transparent;
             border-radius: 10px;
-            color: #b0b0ad;
+            color: var(--color-stone);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -578,7 +624,7 @@
         }
 
         .help-btn:hover {
-            background: #f5f5f5;
+            background: var(--bg-hover);
         }
 
         /* Notion-style tooltip */
@@ -748,7 +794,7 @@
         }
 
         .calendar-day.selected:hover {
-            background: #c9dff5;
+            background: var(--tint-sky);
         }
 
         .day-number {
@@ -962,7 +1008,7 @@
 
         /* ─── RIGHT SIDEBAR ─── */
         .sidebar {
-            background: #ffffff;
+            background: var(--bg-main);
             border-left: 1px solid var(--border);
             overflow-y: auto;
             padding: 20px;
@@ -1130,7 +1176,7 @@
         .search-modal {
             width: 540px;
             max-width: calc(100vw - 32px);
-            background: #fff;
+            background: var(--color-surface-soft);
             border-radius: 12px;
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.06);
             overflow: hidden;

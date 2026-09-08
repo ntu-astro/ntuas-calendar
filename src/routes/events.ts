@@ -1,5 +1,8 @@
 import { parseRange } from '../lib/range';
+import { SECURITY_HEADERS } from '../constants';
 import type { ApiEvent } from '../types';
+
+const MISSING_TABLE = /no such table/i;
 
 interface EventRow {
 	uid: string;
@@ -31,15 +34,29 @@ export async function handleEvents(url: URL, request: Request, env: Env): Promis
 	const fromKey = range.from.replace(/-/g, '');
 	const toKey = range.to.replace(/-/g, '') + 'T235959Z';
 
-	const { results } = await env.DB.prepare(
-		`SELECT uid, summary, dtstart, dtend, status, location, geo, description, categories, url,
-		        organizer_name, organizer_email
-		 FROM events
-		 WHERE dtstart >= ? AND dtstart <= ?
-		 ORDER BY dtstart DESC`,
-	)
-		.bind(fromKey, toKey)
-		.all<EventRow>();
+	let results: EventRow[];
+	try {
+		const rows = await env.DB.prepare(
+			`SELECT uid, summary, dtstart, dtend, status, location, geo, description, categories, url,
+			        organizer_name, organizer_email
+			 FROM events
+			 WHERE dtstart >= ? AND dtstart <= ?
+			 ORDER BY dtstart DESC`,
+		)
+			.bind(fromKey, toKey)
+			.all<EventRow>();
+		results = rows.results;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		if (MISSING_TABLE.test(message)) {
+			console.error('[events] local database not initialised:', message);
+			return Response.json(
+				{ error: 'Local database is not initialised. Run: npm run setup' },
+				{ status: 503, headers: SECURITY_HEADERS },
+			);
+		}
+		throw err;
+	}
 
 	const events = results.map(toJson);
 

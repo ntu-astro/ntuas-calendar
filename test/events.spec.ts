@@ -75,4 +75,14 @@ describe('GET /api/events', () => {
 		const res = await req(`${BASE}/api/events?from=2026-12-31&to=2026-01-01`);
 		expect(res.status).toBe(400);
 	});
+
+	it('returns a setup hint when the events table does not exist', async () => {
+		await env.DB.prepare('DROP TABLE IF EXISTS events').run();
+
+		const res = await req(`${BASE}/api/events`);
+
+		expect(res.status).toBe(503);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain('npm run setup');
+	});
 });

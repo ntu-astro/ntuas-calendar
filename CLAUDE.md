@@ -6,6 +6,7 @@
 - Local D1 is initialized and contains a clone of production data — `npm run dev` serves real events
 - Local dev never connects to the remote (production) D1
 - If `.wrangler/state/v3/d1/` is wiped, events will be empty — see README for setup/migration steps
+- After editing `client/src/**`, run `npm run build:client` (or keep `npm run dev:client` running in watch mode) — `wrangler dev` serves `public/dist/` as-is, so otherwise you are testing a stale bundle
 
 ## Schema Changes
 
@@ -71,7 +72,7 @@ Verify the new screenshots look correct before committing them.
 - **Runtime**: Cloudflare Workers (edge serverless, TypeScript)
 - **Database**: Cloudflare D1 (SQLite-compatible, bound as `DB`)
 - **Static assets**: `public/` served via Cloudflare Workers Assets binding (`ASSETS`)
-- **Tooling**: wrangler CLI, vitest + `@cloudflare/vitest-pool-workers`
+- **Tooling**: wrangler CLI, vitest + `@cloudflare/vitest-pool-workers`, `tsc` for the client bundle
 - **Compat flags**: `nodejs_compat`, `global_fetch_strictly_public`
 
 ### Project Structure
@@ -88,7 +89,12 @@ Verify the new screenshots look correct before committing them.
 - `src/templates/admin.html.ts` — `ADMIN_HTML(csrfToken)` template literal
 - `src/templates/login.html.ts` — `LOGIN_HTML(error)` template literal
 - `shared/contract.d.ts` — Shared API contract types between Worker and client
-- `public/index.html` — Static landing page calendar (plain HTML + inline JS, fetches `/api/events`)
+- `client/src/*.ts` — Landing-page client source (strict TS, ES modules): `index.ts` entry plus `api`, `state`, `dates`,
+  `categories`, `search`, `miniCal`, `weekGrid`, `eventDetail`, `ui`, `api-types` (re-exports `ApiEvent` from
+  `shared/contract.d.ts`), and `admin` (the `/admin` dashboard script)
+- `tsconfig.client.json` — Client build config (`rootDir: client/src` → `outDir: public/dist`)
+- `public/index.html` — Landing page shell; loads the compiled bundle via `<script type="module" src="/dist/index.js">`, which fetches `/api/events`
+- `public/dist/` — Compiled client bundle. **Gitignored build output** — produced by `npm run build:client`, never committed
 - `wrangler.jsonc` — Deployment config (custom domain `calendar.ntuas.com`, D1 binding, assets binding)
 - `test/*.spec.ts` — Test suite using in-memory D1
 - `test/templates.spec.ts` — HTML byte-snapshot regression tests for admin & login pages
@@ -97,6 +103,21 @@ Verify the new screenshots look correct before committing them.
 - `scripts/read-dev-vars.mjs` — Parses `.dev.vars` for E2E tests
 - `scripts/generate-venues.mjs` — Venue list generator for NTU facilities
 - `migrations/`, `seed.sql`, `remote_backup.sql` — Database migrations, seed data, production backup
+
+### Client Bundle
+
+The landing page is **not** inline JS — `public/index.html` is a shell that loads an ES module graph from `public/dist/`.
+The server-rendered `/admin` dashboard depends on the same build: `src/templates/admin.html.ts` loads `/dist/admin.js`.
+So a missing bundle takes down both the public calendar and the admin UI.
+
+```bash
+npm run build:client   # tsc -p tsconfig.client.json — client/src/*.ts → public/dist/*.js
+npm run dev:client     # same, in --watch mode
+```
+
+`public/dist/` is gitignored and exists only after a build. If it is missing, the page renders its shell and hangs
+on "Loading..." forever, with a 404 on `/dist/index.js` — the Worker and `/api/events` stay healthy, so nothing else
+signals the failure. See [Deployment](#deployment) for the deploy-time version of this trap.
 
 ### Routing
 
@@ -150,10 +171,30 @@ Indexes: `(calendar_id, dtstart)`, `(dtstart DESC)` on events; `(ip, attempted_a
 ### Deployment
 
 ```bash
-npm run deploy   # wrangler deploy → calendar.ntuas.com
+npm run deploy   # predeploy → build:client, then wrangler deploy → calendar.ntuas.com
 ```
 
 Bindings in `wrangler.jsonc`: `DB` (D1 `calendar_db`), `ASSETS` (`./public`), observability enabled.
+
+> [!IMPORTANT]
+> **Always deploy via `npm run deploy` — never a bare `wrangler deploy`.**
+> The client bundle is built by the `predeploy` npm hook. `npx wrangler deploy` invoked directly does not run npm
+> lifecycle hooks, so it uploads `public/` *without* `public/dist/` — 10 assets instead of 36. The Worker deploys
+> successfully and the API stays healthy, so this fails silently: the site just hangs on "Loading...".
+>
+> This is exactly how production broke on 2026-09-03. **Cloudflare Workers Builds** defaults its deploy command to
+> `npx wrangler deploy`, so its dashboard **Build command** (Settings → Build) must run `npm run build:client`.
+> Workers Builds does not honor wrangler's Custom Builds config, so this cannot be fixed from `wrangler.jsonc`.
+
+Two pipelines deploy every push to `main` and race — whichever finishes last wins:
+
+| Pipeline                                    | Runs                                  | Applies D1 migrations |
+| ------------------------------------------- | ------------------------------------- | --------------------- |
+| `.github/workflows/deploy.yml`              | `npm run deploy`                      | Yes, before deploying |
+| Cloudflare Workers Builds (git integration) | Dashboard build + deploy commands     | No                    |
+
+Only GitHub Actions applies migrations, so a push containing one can have Workers Builds deploy the new code before
+the migration lands. Keep this in mind when shipping a schema change.
 
 ## Updating Venues
 

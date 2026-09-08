@@ -137,6 +137,11 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	const cellMonthKey = getMonthKey(cellDate);
 	const dayEl = document.createElement('div') as HTMLDivElement;
 	dayEl.className = 'calendar-day';
+	dayEl.setAttribute('role', 'gridcell');
+	dayEl.setAttribute('aria-label', cellDate.toLocaleDateString('en-GB', {
+		day: 'numeric', month: 'long', year: 'numeric',
+	}));
+	dayEl.tabIndex = -1; // roving tabindex; Task 10 moves focus between cells
 
 	if (d === 0 || d === 6) {
 		dayEl.classList.add('weekend-day');
@@ -180,6 +185,7 @@ export function renderWeekRow(sundayDate: Date): HTMLElement {
 
 	const row = document.createElement('div') as HTMLDivElement;
 	row.className = 'week-row';
+	row.setAttribute('role', 'row');
 	row.dataset.week = weekKey;
 
 	const thu = thursdayOfWeek(sundayDate);

@@ -15,6 +15,7 @@ export function renderDayNamesRow(): void {
 	days.forEach((d, i) => {
 		const el = document.createElement('div');
 		el.className = 'calendar-day-name';
+		el.setAttribute('role', 'columnheader');
 		if (i === todayIndex) el.classList.add('is-today');
 		el.textContent = d;
 		row.appendChild(el);

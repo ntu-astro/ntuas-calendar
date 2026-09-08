@@ -65,3 +65,51 @@ test.describe('Landing page — first of month', () => {
 		await expect(label.locator('.fom-day')).toHaveCSS('font-weight', '400');
 	});
 });
+
+test.describe('Landing page — accessibility', () => {
+	test('the grid exposes grid/row/gridcell semantics', async ({ page }) => {
+		await gotoFrozen(page);
+		await expect(page.locator('[role="grid"]')).toHaveCount(1);
+		expect(await page.locator('[role="row"]').count()).toBeGreaterThan(3);
+		expect(await page.locator('[role="gridcell"]').count()).toBeGreaterThan(20);
+		await expect(page.locator('[role="columnheader"]')).toHaveCount(7);
+	});
+
+	test('day cells carry an accessible date label', async ({ page }) => {
+		await gotoFrozen(page);
+		await expect(page.locator('[role="gridcell"][aria-label="8 September 2026"]')).toHaveCount(1);
+	});
+
+	test('category filters are real checkboxes reachable by keyboard', async ({ page }) => {
+		await gotoFrozen(page);
+		const filter = page.locator('.category-item').first();
+		await expect(filter).toHaveAttribute('role', 'checkbox');
+		await expect(filter).toHaveAttribute('aria-checked', 'true');
+
+		await filter.focus();
+		await page.keyboard.press('Space');
+		await expect(filter).toHaveAttribute('aria-checked', 'false');
+	});
+
+	test('month navigation labels use consistent sentence case and unique pairs', async ({ page }) => {
+		await gotoFrozen(page);
+		const labels = await page.locator('[aria-label]').evaluateAll(els =>
+			els.map(e => e.getAttribute('aria-label') ?? ''),
+		);
+		const nav = labels.filter(l => /previous|next/i.test(l));
+
+		// Two pairs of arrows: the main month nav and the mini-calendar nav.
+		expect(nav).toHaveLength(4);
+
+		// Sentence case: first letter uppercase, the rest lowercase.
+		const toSentence = (l: string): string => l.toLowerCase().replace(/^./, c => c.toUpperCase());
+		expect(nav.every(l => l === toSentence(l))).toBe(true);
+
+		// The mini-calendar pair is uniquely labelled so screen-reader users can
+		// tell the two arrow pairs apart.
+		const prev = nav.filter(l => /previous/i.test(l));
+		const next = nav.filter(l => /next/i.test(l));
+		expect(new Set(prev.map(l => l.toLowerCase())).size).toBe(2);
+		expect(new Set(next.map(l => l.toLowerCase())).size).toBe(2);
+	});
+});

@@ -113,3 +113,37 @@ test.describe('Landing page — accessibility', () => {
 		expect(new Set(next.map(l => l.toLowerCase())).size).toBe(2);
 	});
 });
+
+test.describe('Landing page — keyboard', () => {
+	test('t returns to today', async ({ page }) => {
+		await gotoFrozen(page);
+		const area = page.locator('#calendarArea');
+		await area.evaluate(el => { el.scrollTop -= 900; });
+		const moved = await area.evaluate(el => el.scrollTop);
+
+		await page.keyboard.press('t');
+		await page.waitForTimeout(500);
+
+		expect(await area.evaluate(el => el.scrollTop)).not.toBe(moved);
+		await expect(page.locator('#monthLabel')).toHaveText('September 2026');
+	});
+
+	test('/ opens search and Escape closes it', async ({ page }) => {
+		await gotoFrozen(page);
+		await page.keyboard.press('/');
+		await expect(page.locator('.search-overlay')).toHaveClass(/active/);
+		await page.keyboard.press('Escape');
+		await expect(page.locator('.search-overlay')).not.toHaveClass(/active/);
+	});
+
+	test('shortcuts do not fire while typing in the search box', async ({ page }) => {
+		await gotoFrozen(page);
+		await page.keyboard.press('/');
+		await expect(page.locator('.search-overlay')).toHaveClass(/active/);
+
+		await page.locator('.search-overlay input').press('t');
+
+		await expect(page.locator('.search-overlay')).toHaveClass(/active/);
+		await expect(page.locator('.search-overlay input')).toHaveValue('t');
+	});
+});

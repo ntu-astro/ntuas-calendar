@@ -32,6 +32,7 @@ import {
 	wireSearchKeyboard,
 	wireCopyButton,
 } from './ui.js';
+import { wireKeyboardShortcuts } from './keyboard.js';
 
 // ─── INIT ───
 
@@ -76,6 +77,7 @@ async function initCalendar(): Promise<void> {
 	wireSearchKeyboard();
 	wireNavigationButtons();
 	wireCopyButton();
+	wireKeyboardShortcuts();
 
 	// Defer sentinel observer so initial scroll settles first
 	requestAnimationFrame(() => {

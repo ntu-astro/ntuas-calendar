@@ -24,6 +24,7 @@ export let eventsData: ApiEvent[] = [];
 export let miniCalDate: Date = new Date();
 export let currentVisibleMonth: string | null = null;
 export let CATEGORY_CONFIG: Record<string, CategoryStyle> = {};
+export let selectedEvent: ApiEvent | null = null;
 
 // Mutable containers — binding is stable, contents change in place.
 export const activeCategories = new Set<string>();
@@ -49,4 +50,7 @@ export function setCurrentVisibleMonth(v: string | null): void {
 }
 export function setCategoryConfig(v: Record<string, CategoryStyle>): void {
 	CATEGORY_CONFIG = v;
+}
+export function setSelectedEvent(v: ApiEvent | null): void {
+	selectedEvent = v;
 }

@@ -1,8 +1,8 @@
 import type { ApiEvent } from './api-types.js';
-import { eventsData } from './state.js';
+import { eventsData, setSelectedEvent } from './state.js';
 import { parseDtstart } from './dates.js';
 import { scrollToDate } from './weekGrid.js';
-import { getCategoryStyle, isCategoryVisible } from './categories.js';
+import { getCategoryStyle, getCategoryKey, isCategoryVisible } from './categories.js';
 
 export function escapeHTML(str: string): string {
 	return str.replace(/[&<>'"]/g, tag => ({
@@ -104,6 +104,7 @@ function buildEventCard(enriched: {
 }
 
 export function showEventDetails(evt: ApiEvent): void {
+	setSelectedEvent(evt);
 
 	const parsed = parseDtstart(evt.dtstart);
 	let endParsed: Date | null = null;
@@ -115,7 +116,9 @@ export function showEventDetails(evt: ApiEvent): void {
 	content.textContent = '';
 
 	content.appendChild(createHeadingRow(parsed));
-	content.appendChild(buildEventCard(enriched));
+	const card = buildEventCard(enriched);
+	card.dataset.category = getCategoryKey(evt) || '';
+	content.appendChild(card);
 
 	// Swap sidebar views
 	document.getElementById('upcomingEventsView')!.style.display = 'none';
@@ -123,7 +126,9 @@ export function showEventDetails(evt: ApiEvent): void {
 }
 
 export function clearEventDetails(): void {
+	setSelectedEvent(null);
 	document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+	document.getElementById('eventDetailContent')!.textContent = '';
 	document.getElementById('eventDetailView')!.style.display = 'none';
 	document.getElementById('upcomingEventsView')!.style.display = 'block';
 }

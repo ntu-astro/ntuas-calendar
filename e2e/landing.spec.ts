@@ -29,3 +29,17 @@ test.describe('Landing page — scroll anchoring', () => {
 		expect(clipped).toBeLessThanOrEqual(1);
 	});
 });
+
+test.describe('Landing page — category filter', () => {
+	test('filtering a category closes a detail panel showing that category', async ({ page }) => {
+		await gotoFrozen(page);
+
+		await page.locator('.event-chip').first().click();
+		await expect(page.locator('.detail-event-title')).toBeVisible();
+		const category = await page.locator('.detail-event-card').getAttribute('data-category');
+
+		await page.locator(`.category-item[data-category="${category}"]`).click();
+
+		await expect(page.locator('.detail-event-title')).toHaveCount(0);
+	});
+});

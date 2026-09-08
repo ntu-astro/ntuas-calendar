@@ -3,11 +3,12 @@ import {
 	activeCategories,
 	eventsData,
 	CATEGORY_CONFIG,
+	selectedEvent,
 	setCategoryConfig,
 	type CategoryStyle,
 } from './state.js';
 import { refreshAllDayChips } from './weekGrid.js';
-import { renderUpcomingEvents } from './eventDetail.js';
+import { renderUpcomingEvents, clearEventDetails } from './eventDetail.js';
 
 export const NOTION_PALETTE: ReadonlyArray<CategoryStyle> = [
 	{ color: '#337ea9', colorLight: '#ddebf1' }, // blue
@@ -100,6 +101,11 @@ export function renderCategoryFilter(): void {
 			}
 			refreshAllDayChips();
 			renderUpcomingEvents();
+
+			// A hidden category must not leave its event open in the detail panel.
+			if (selectedEvent && !isCategoryVisible(selectedEvent)) {
+				clearEventDetails();
+			}
 		});
 		container.appendChild(row);
 	}

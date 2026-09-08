@@ -521,6 +521,34 @@
         .left-sidebar-spacer {
             flex: 1;
             min-height: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .subscribe-hint {
+            padding: 12px 4px 4px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-tertiary);
+        }
+
+        .subscribe-hint-label {
+            display: block;
+            font-weight: 500;
+        }
+
+        .subscribe-hint-url {
+            display: inline-block;
+            margin-top: 2px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            word-break: break-all;
+            transition: color 0.12s;
+        }
+
+        .subscribe-hint-url:hover {
+            color: var(--link-blue);
         }
 
         .left-sidebar-footer {
@@ -1303,7 +1331,12 @@
             </div>
             <div class="mini-cal-grid" id="miniCalGrid"></div>
             <div class="event-categories" id="eventCategories"></div>
-            <div class="left-sidebar-spacer"></div>
+            <div class="left-sidebar-spacer">
+                <div class="subscribe-hint">
+                    <span class="subscribe-hint-label">Add this calendar to your app</span>
+                    <a class="subscribe-hint-url" href="https://calendar.ntuas.com/subscribe">https://calendar.ntuas.com/subscribe</a>
+                </div>
+            </div>
             <div class="left-sidebar-footer">
                 <div class="help-btn-wrap">
                     <button class="help-btn" id="helpBtn" aria-label="Help and resources">

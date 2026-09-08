@@ -43,3 +43,14 @@ test.describe('Landing page — category filter', () => {
 		await expect(page.locator('.detail-event-title')).toHaveCount(0);
 	});
 });
+
+test.describe('Landing page — weekday header', () => {
+	test("today's weekday column header is emphasised", async ({ page }) => {
+		await gotoFrozen(page); // 2026-09-08 is a Tuesday
+
+		const today = page.locator('.calendar-day-name.is-today');
+		await expect(today).toHaveText('Tue');
+		await expect(today).toHaveCSS('font-weight', '500');
+		await expect(today).toHaveCSS('color', 'rgb(50, 48, 44)');
+	});
+});

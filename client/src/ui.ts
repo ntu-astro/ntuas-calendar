@@ -11,9 +11,11 @@ const COPY_FEEDBACK_MS = 2000;
 export function renderDayNamesRow(): void {
 	const row = document.getElementById('dayNamesRow')!;
 	const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-	days.forEach(d => {
+	const todayIndex = new Date().getDay();
+	days.forEach((d, i) => {
 		const el = document.createElement('div');
 		el.className = 'calendar-day-name';
+		if (i === todayIndex) el.classList.add('is-today');
 		el.textContent = d;
 		row.appendChild(el);
 	});

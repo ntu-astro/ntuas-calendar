@@ -91,9 +91,14 @@
 
             --left-sidebar-width: 240px;
             --mini-cal-cell: 28px;
-            --topbar-height: 44px;
-            --month-heading-height: 36px;
-            --daynames-height: 32px;
+            /* Measured render heights of the sticky header stack. These feed the
+               day-cell height calc and scroll-padding-top, so they must match the
+               real rendered values. getStickyOffset() in client/src/weekGrid.ts
+               measures the same stack at runtime and is the source of truth for
+               scroll anchoring — do not rely on these alone. */
+            --topbar-height: 48px;
+            --month-heading-height: 37.5px;
+            --daynames-height: 37px;
             --header-height: calc(var(--topbar-height) + var(--month-heading-height) + var(--daynames-height));
         }
 

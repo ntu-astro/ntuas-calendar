@@ -20,8 +20,19 @@ import { showEventDetails, clearEventDetails } from './eventDetail.js';
 import { renderMiniCalendar } from './miniCal.js';
 import { getCategoryStyle, isCategoryVisible } from './categories.js';
 
-const STICKY_OFFSET = 112;
 const SMOOTH_SCROLL_VIEWPORT_RATIO = 1.5;
+
+/**
+ * Height of the sticky header stack (top bar + month heading + day names).
+ * Measured rather than hardcoded: a previous constant of 112 drifted from the
+ * real 127px and clipped the first week row by 15px.
+ */
+function getStickyOffset(): number {
+	const namesRow = document.querySelector('.day-names-row');
+	const area = document.getElementById('calendarArea');
+	if (!namesRow || !area) return 0;
+	return Math.round(namesRow.getBoundingClientRect().bottom - area.getBoundingClientRect().top);
+}
 
 
 
@@ -375,7 +386,7 @@ export function setupMonthHeaderObserver(): void {
 
 export function scrollWeekIntoView(weekEl: HTMLElement, behavior?: 'smooth'): void {
 	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const targetTop = weekEl.offsetTop - STICKY_OFFSET;
+	const targetTop = weekEl.offsetTop - getStickyOffset();
 	if (behavior === 'smooth') {
 		scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
 	} else {
@@ -388,7 +399,7 @@ export function scrollToDate(targetDate: Date, _behavior?: ScrollBehavior): void
 	let weekEl = STATE.weekElements.get(weekKey);
 
 	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const canSmoothScroll = weekEl && Math.abs(weekEl.offsetTop - STICKY_OFFSET - scrollArea.scrollTop) < scrollArea.clientHeight * SMOOTH_SCROLL_VIEWPORT_RATIO;
+	const canSmoothScroll = weekEl && Math.abs(weekEl.offsetTop - getStickyOffset() - scrollArea.scrollTop) < scrollArea.clientHeight * SMOOTH_SCROLL_VIEWPORT_RATIO;
 
 	if (weekEl && canSmoothScroll) {
 		scrollWeekIntoView(weekEl, 'smooth');

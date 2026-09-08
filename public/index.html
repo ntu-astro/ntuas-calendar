@@ -511,6 +511,12 @@
             color: var(--text-primary);
         }
 
+        .category-item:focus-visible,
+        .calendar-day:focus-visible {
+            outline: 2px solid var(--color-primary);
+            outline-offset: -2px;
+        }
+
         /* ─── LEFT SIDEBAR FOOTER ─── */
         .left-sidebar-spacer {
             flex: 1;
@@ -1281,13 +1287,13 @@
             <div class="mini-cal-header">
                 <span class="mini-cal-month-label" id="miniCalMonth">Loading...</span>
                 <div class="mini-cal-nav-group">
-                    <button class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month">
+                    <button class="mini-cal-nav" id="miniCalPrev" aria-label="Previous month (mini calendar)">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                             <path d="M2 7L5 3L8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
                                 stroke-linejoin="round" />
                         </svg>
                     </button>
-                    <button class="mini-cal-nav" id="miniCalNext" aria-label="Next month">
+                    <button class="mini-cal-nav" id="miniCalNext" aria-label="Next month (mini calendar)">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                             <path d="M2 3L5 7L8 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
                                 stroke-linejoin="round" />
@@ -1345,13 +1351,13 @@
                         <a href="/admin" class="admin-link">Admin</a>
                         <button id="todayBtn">Today</button>
                         <div class="nav-month-arrows">
-                            <button id="prevMonth" aria-label="Previous Month">
+                            <button id="prevMonth" aria-label="Previous month">
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                                     <path d="M2 7L5 3L8 7" stroke="currentColor" stroke-width="1.5"
                                         stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
                             </button>
-                            <button id="nextMonth" aria-label="Next Month">
+                            <button id="nextMonth" aria-label="Next month">
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                                     <path d="M2 3L5 7L8 3" stroke="currentColor" stroke-width="1.5"
                                         stroke-linecap="round" stroke-linejoin="round" />

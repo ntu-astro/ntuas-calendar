@@ -82,6 +82,9 @@ export function renderCategoryFilter(): void {
 		const row = document.createElement('div');
 		row.className = 'category-item';
 		row.dataset.category = key;
+		row.setAttribute('role', 'checkbox');
+		row.setAttribute('aria-checked', 'true');
+		row.tabIndex = 0;
 		row.style.setProperty('--cat-color', cfg.color);
 		row.style.setProperty('--cat-color-light', cfg.colorLight);
 		const icon = document.createElement('span');
@@ -91,14 +94,17 @@ export function renderCategoryFilter(): void {
 		label.className = 'category-label';
 		label.textContent = cfg.label || '';
 		row.append(icon, label);
-		row.addEventListener('click', () => {
-			if (activeCategories.has(key)) {
-				activeCategories.delete(key);
-				row.classList.add('inactive');
-			} else {
+
+		const toggle = (): void => {
+			const nowActive = !activeCategories.has(key);
+			if (nowActive) {
 				activeCategories.add(key);
 				row.classList.remove('inactive');
+			} else {
+				activeCategories.delete(key);
+				row.classList.add('inactive');
 			}
+			row.setAttribute('aria-checked', String(nowActive));
 			refreshAllDayChips();
 			renderUpcomingEvents();
 
@@ -106,7 +112,16 @@ export function renderCategoryFilter(): void {
 			if (selectedEvent && !isCategoryVisible(selectedEvent)) {
 				clearEventDetails();
 			}
+		};
+
+		row.addEventListener('click', toggle);
+		row.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === ' ' || e.key === 'Enter') {
+				e.preventDefault();
+				toggle();
+			}
 		});
+
 		container.appendChild(row);
 	}
 }

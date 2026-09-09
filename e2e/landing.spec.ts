@@ -199,29 +199,59 @@ test.describe('Landing page — Notion-aligned interactive behaviors', () => {
 		await expect(heading.locator('span')).toHaveCSS('font-weight', '400');
 	});
 
-	test('day cell selection uses crisp inset border with uniform background', async ({ page }) => {
+	test('day cell selection uses solid fill highlight that clears after a few seconds', async ({ page }) => {
 		await gotoFrozen(page);
 		const cell = page.locator('.calendar-day:not(.other-month-day)').first();
-		const unselectedBg = await cell.evaluate((el) => window.getComputedStyle(el).backgroundColor);
 
 		await cell.click();
 		await expect(cell).toHaveClass(/selected/);
 		const selectedBg = await cell.evaluate((el) => window.getComputedStyle(el).backgroundColor);
-		expect(selectedBg).toBe(unselectedBg);
+		// Light mode highlight is #fcd9d8 -> rgb(252, 217, 216)
+		expect(selectedBg).toBe('rgb(252, 217, 216)');
 
 		const boxShadow = await cell.evaluate((el) => window.getComputedStyle(el).boxShadow);
-		expect(boxShadow).toContain('0px 0px 0px 1px inset');
-		expect(boxShadow).toContain('rgb(0, 117, 222)');
+		expect(boxShadow).toBe('none');
+
+		// Wait for the temporary highlight duration (2500ms) to elapse
+		await page.waitForTimeout(2600);
+		await expect(cell).not.toHaveClass(/selected/);
 	});
 
-	test('mini calendar day selection synchronizes with main calendar day selection', async ({ page }) => {
+	test('mini calendar day selection synchronizes with main calendar day selection and clears', async ({ page }) => {
 		await gotoFrozen(page);
-		const miniDay15 = page.locator('.mini-cal-day:not(.other-month)', { hasText: '15' }).first();
+		const miniDay15 = page.locator('.mini-cal-day:not(.other-month)', { hasText: /^15$/ }).first();
 		await miniDay15.click();
 		await expect(miniDay15).toHaveClass(/selected/);
 
 		const mainDay15 = page.locator('.calendar-day[data-date$="-09-15"]');
 		await expect(mainDay15).toHaveClass(/selected/);
+		const mainBg = await mainDay15.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(mainBg).toBe('rgb(252, 217, 216)');
+
+		// Temporary highlight clears after 2.5s
+		await page.waitForTimeout(2600);
+		await expect(mainDay15).not.toHaveClass(/selected/);
+		await expect(miniDay15).not.toHaveClass(/selected/);
+	});
+
+	test('mini calendar click on day in other month scrolls main calendar and highlights that day while remaining in month view', async ({
+		page,
+	}) => {
+		await gotoFrozen(page);
+		const nextMonthDay = page.locator('.mini-cal-day.other-month', { hasText: /^1$/ }).first();
+		await nextMonthDay.click();
+
+		const mainDayOct1 = page.locator('.calendar-day[data-date$="-10-01"]');
+		await expect(mainDayOct1).toHaveClass(/selected/);
+
+		// Verify calendar remains in continuous monthly view (week rows exist, no week view mode)
+		const weekRows = page.locator('.week-row');
+		await expect(weekRows.first()).toBeVisible();
+		expect(await weekRows.count()).toBeGreaterThanOrEqual(6);
+
+		// Temporary highlight clears after 2.5s
+		await page.waitForTimeout(2600);
+		await expect(mainDayOct1).not.toHaveClass(/selected/);
 	});
 
 	test('overflow chips are interactive buttons', async ({ page }) => {

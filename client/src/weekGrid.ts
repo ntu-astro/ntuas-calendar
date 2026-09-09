@@ -53,6 +53,51 @@ export function getVisibleEventsForDate(dateStr: string | null): ApiEvent[] {
 	});
 }
 
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function clearHighlight(): void {
+	if (highlightTimer) {
+		clearTimeout(highlightTimer);
+		highlightTimer = null;
+	}
+	document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
+	setSelectedDateStr(null);
+	renderMiniCalendar();
+}
+
+export function highlightDate(dateStr: string | null, durationMs = 2500): void {
+	if (highlightTimer) {
+		clearTimeout(highlightTimer);
+		highlightTimer = null;
+	}
+
+	document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
+
+	if (!dateStr) {
+		setSelectedDateStr(null);
+		renderMiniCalendar();
+		return;
+	}
+
+	setSelectedDateStr(dateStr);
+	const targetCell = document.querySelector<HTMLDivElement>(`.calendar-day[data-date="${dateStr}"]`);
+	if (targetCell) {
+		targetCell.classList.add('selected');
+	}
+	renderMiniCalendar();
+
+	if (durationMs > 0) {
+		highlightTimer = setTimeout(() => {
+			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
+			if (selectedDateStr === dateStr) {
+				setSelectedDateStr(null);
+				renderMiniCalendar();
+			}
+			highlightTimer = null;
+		}, durationMs);
+	}
+}
+
 export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent[]): void {
 	dayEl.querySelectorAll('.event-chip, .event-chip-more').forEach((el) => el.remove());
 	const visible = allDayEvents.filter(isCategoryVisible);
@@ -91,10 +136,7 @@ export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent
 
 		chip.addEventListener('click', (e) => {
 			e.stopPropagation();
-			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
-			dayEl.classList.add('selected');
-			setSelectedDateStr(dayEl.dataset.date || null);
-			renderMiniCalendar();
+			highlightDate(dayEl.dataset.date || null);
 			showEventDetails(evt);
 		});
 		dayEl.appendChild(chip);
@@ -107,10 +149,7 @@ export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent
 		more.setAttribute('tabindex', '0');
 		more.addEventListener('click', (e) => {
 			e.stopPropagation();
-			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
-			dayEl.classList.add('selected');
-			setSelectedDateStr(dayEl.dataset.date || null);
-			renderMiniCalendar();
+			highlightDate(dayEl.dataset.date || null);
 			showEventDetails(visible[0]);
 		});
 		more.addEventListener('keydown', (e) => {
@@ -153,11 +192,9 @@ function createDayNumberElement(cellDate: Date, isToday: boolean): HTMLSpanEleme
 }
 
 function handleDayCellClick(dayEl: HTMLDivElement): void {
-	document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
-	dayEl.classList.add('selected');
-	setSelectedDateStr(dayEl.dataset.date || null);
-	renderMiniCalendar();
-	const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
+	const dateStr = dayEl.dataset.date || null;
+	highlightDate(dateStr);
+	const visible = getVisibleEventsForDate(dateStr);
 	if (visible.length > 0) {
 		showEventDetails(visible[0]);
 	} else {
@@ -494,6 +531,13 @@ export function scrollToDate(targetDate: Date, _behavior?: ScrollBehavior): void
 				}
 			});
 		});
+	}
+
+	if (selectedDateStr) {
+		const targetCell = document.querySelector<HTMLDivElement>(`.calendar-day[data-date="${selectedDateStr}"]`);
+		if (targetCell) {
+			targetCell.classList.add('selected');
+		}
 	}
 }
 

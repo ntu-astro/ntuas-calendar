@@ -85,6 +85,7 @@
 
 				/* Notion Calendar alignment */
 				--today-red: #f15550;
+				--day-highlight-bg: #fcd9d8; /* Notion Calendar date flash / solid fill wash (rgba(244,171,159,0.4)) */
 				--grid-line: #eeeeee; /* Notion rgb(238,238,238) */
 				--weekend-tint: var(--color-canvas); /* Uniform calendar tiles across all days */
 
@@ -133,6 +134,7 @@
 
 				/* Hover / grid / weekend */
 				--bg-hover: rgba(255, 255, 255, 0.095);
+				--day-highlight-bg: rgba(222, 85, 85, 0.25); /* Notion --nds-tint-contr-uiRedHover */
 				--grid-line: #222222; /* Notion --layout-line-grid-v */
 				--weekend-tint: var(--color-canvas); /* Uniform calendar tiles in dark mode */
 
@@ -174,6 +176,7 @@
 
 					/* Hover / grid / weekend */
 					--bg-hover: rgba(255, 255, 255, 0.095);
+					--day-highlight-bg: rgba(222, 85, 85, 0.25);
 					--grid-line: #222222;
 					--weekend-tint: var(--color-canvas);
 
@@ -815,7 +818,7 @@
 				display: flex;
 				flex-direction: column;
 				cursor: default;
-				transition: background 0.12s;
+				transition: background 0.3s ease;
 				overflow: hidden;
 				position: relative;
 				/* 6 rows: fill available height */
@@ -836,19 +839,11 @@
 				background: var(--weekend-tint);
 			}
 
-			/* Crisp primary inset border for selection — uniform canvas tile */
-			.calendar-day.selected {
-				box-shadow: inset 0 0 0 1px var(--color-primary);
-				z-index: 1;
-			}
-
+			/* Solid fill highlight for selected / flashed date — matching Notion Calendar */
+			.calendar-day.selected,
 			.calendar-day.selected:hover {
-				box-shadow: inset 0 0 0 1px var(--color-primary);
-			}
-
-			.calendar-day.selected .day-number:not(.today-marker) {
-				color: var(--color-primary);
-				font-weight: 600;
+				transition: background 0s;
+				background: var(--day-highlight-bg);
 			}
 
 			.day-number {

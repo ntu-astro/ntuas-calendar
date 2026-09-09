@@ -1,6 +1,6 @@
-import { miniCalDate, setMiniCalDate, selectedDateStr, setSelectedDateStr } from './state.js';
+import { miniCalDate, setMiniCalDate, selectedDateStr } from './state.js';
 import { clearEventDetails } from './eventDetail.js';
-import { scrollToDate } from './weekGrid.js';
+import { scrollToDate, highlightDate } from './weekGrid.js';
 
 function renderPrevMonthDays(grid: HTMLElement, year: number, month: number, firstDay: number, prevMonthDays: number): void {
 	for (let i = firstDay - 1; i >= 0; i--) {
@@ -12,13 +12,9 @@ function renderPrevMonthDays(grid: HTMLElement, year: number, month: number, fir
 		el.className = 'mini-cal-day other-month' + (isSelected ? ' selected' : '');
 		el.textContent = String(dayNum);
 		el.addEventListener('click', () => {
-			setSelectedDateStr(dateStr);
 			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
-			renderMiniCalendar();
 			clearEventDetails(true);
-			document.querySelectorAll('.calendar-day.selected').forEach((d) => d.classList.remove('selected'));
-			const mainDayEl = document.querySelector(`.calendar-day[data-date="${dateStr}"]`);
-			if (mainDayEl) mainDayEl.classList.add('selected');
+			highlightDate(dateStr);
 			scrollToDate(targetDate, 'smooth');
 		});
 		grid.appendChild(el);
@@ -35,12 +31,8 @@ function renderCurrentMonthDays(grid: HTMLElement, year: number, month: number, 
 		el.className = 'mini-cal-day' + (isToday ? ' today' : '') + (isSelected && !isToday ? ' selected' : '');
 		el.textContent = String(i);
 		el.addEventListener('click', () => {
-			setSelectedDateStr(dateStr);
-			renderMiniCalendar();
 			clearEventDetails(true);
-			document.querySelectorAll('.calendar-day.selected').forEach((d) => d.classList.remove('selected'));
-			const mainDayEl = document.querySelector(`.calendar-day[data-date="${dateStr}"]`);
-			if (mainDayEl) mainDayEl.classList.add('selected');
+			highlightDate(dateStr);
 			const targetDate = new Date(year, month, i);
 			scrollToDate(targetDate, 'smooth');
 		});
@@ -59,13 +51,9 @@ function renderNextMonthDays(grid: HTMLElement, year: number, month: number, tot
 		el.className = 'mini-cal-day other-month' + (isSelected ? ' selected' : '');
 		el.textContent = String(i);
 		el.addEventListener('click', () => {
-			setSelectedDateStr(dateStr);
 			setMiniCalDate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
-			renderMiniCalendar();
 			clearEventDetails(true);
-			document.querySelectorAll('.calendar-day.selected').forEach((d) => d.classList.remove('selected'));
-			const mainDayEl = document.querySelector(`.calendar-day[data-date="${dateStr}"]`);
-			if (mainDayEl) mainDayEl.classList.add('selected');
+			highlightDate(dateStr);
 			scrollToDate(targetDate, 'smooth');
 		});
 		grid.appendChild(el);

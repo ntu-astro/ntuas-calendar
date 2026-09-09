@@ -188,6 +188,61 @@ test.describe('Landing page — day hover behaviour', () => {
 	});
 });
 
+test.describe('Landing page — Notion-aligned interactive behaviors', () => {
+	test('month heading splits weights into bold month and regular year', async ({ page }) => {
+		await gotoFrozen(page);
+		const heading = page.locator('#monthLabel');
+		await expect(heading).toHaveText('September 2026');
+		await expect(heading.locator('strong')).toHaveText('September');
+		await expect(heading.locator('strong')).toHaveCSS('font-weight', '700');
+		await expect(heading.locator('span')).toHaveText('2026');
+		await expect(heading.locator('span')).toHaveCSS('font-weight', '400');
+	});
+
+	test('day cell selection uses crisp inset border with uniform background', async ({ page }) => {
+		await gotoFrozen(page);
+		const cell = page.locator('.calendar-day:not(.other-month-day)').first();
+		const unselectedBg = await cell.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+
+		await cell.click();
+		await expect(cell).toHaveClass(/selected/);
+		const selectedBg = await cell.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(selectedBg).toBe(unselectedBg);
+
+		const boxShadow = await cell.evaluate((el) => window.getComputedStyle(el).boxShadow);
+		expect(boxShadow).toContain('0px 0px 0px 1px inset');
+		expect(boxShadow).toContain('rgb(0, 117, 222)');
+	});
+
+	test('mini calendar day selection synchronizes with main calendar day selection', async ({ page }) => {
+		await gotoFrozen(page);
+		const miniDay15 = page.locator('.mini-cal-day:not(.other-month)', { hasText: '15' }).first();
+		await miniDay15.click();
+		await expect(miniDay15).toHaveClass(/selected/);
+
+		const mainDay15 = page.locator('.calendar-day[data-date$="-09-15"]');
+		await expect(mainDay15).toHaveClass(/selected/);
+	});
+
+	test('overflow chips are interactive buttons', async ({ page }) => {
+		await gotoFrozen(page);
+		const moreChip = page.locator('.event-chip-more').first();
+		if ((await moreChip.count()) > 0) {
+			await expect(moreChip).toHaveAttribute('role', 'button');
+			await moreChip.click();
+			await expect(page.locator('.detail-event-title')).toBeVisible();
+		}
+	});
+
+	test('action buttons provide shortcut tooltips via title attributes', async ({ page }) => {
+		await gotoFrozen(page);
+		await expect(page.locator('#todayBtn')).toHaveAttribute('title', 'Jump to today (T)');
+		await expect(page.locator('#searchBtn')).toHaveAttribute('title', 'Search (/)');
+		await expect(page.locator('#prevMonth')).toHaveAttribute('title', 'Previous month');
+		await expect(page.locator('#nextMonth')).toHaveAttribute('title', 'Next month');
+	});
+});
+
 test.describe('Landing page — dark mode', () => {
 	test('dark mode follows the system preference with uniform dark tiles', async ({ browser }) => {
 		const ctx = await browser.newContext({ colorScheme: 'dark' });
@@ -219,6 +274,12 @@ test.describe('Landing page — dark mode', () => {
 		await gotoFrozen(lightPage);
 		await lightPage.screenshot({ path: 'reference/updated-calendar-light.png' });
 		await lightCtx.close();
+		// Also update artifact for user viewing
+		const fs = await import('node:fs');
+		fs.copyFileSync(
+			'reference/updated-calendar-light.png',
+			'/Users/zhunhao/.gemini/antigravity/brain/aedaa8bc-bc91-4e8a-9e91-0e57470d9995/updated-calendar-light.png',
+		);
 
 		// Dark mode
 		const darkCtx = await browser.newContext({
@@ -230,5 +291,9 @@ test.describe('Landing page — dark mode', () => {
 		await gotoFrozen(darkPage);
 		await darkPage.screenshot({ path: 'reference/updated-calendar-dark.png' });
 		await darkCtx.close();
+		fs.copyFileSync(
+			'reference/updated-calendar-dark.png',
+			'/Users/zhunhao/.gemini/antigravity/brain/aedaa8bc-bc91-4e8a-9e91-0e57470d9995/updated-calendar-dark.png',
+		);
 	});
 });

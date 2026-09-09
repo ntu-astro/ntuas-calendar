@@ -125,9 +125,11 @@ export function showEventDetails(evt: ApiEvent): void {
 	document.getElementById('eventDetailView')!.style.display = 'block';
 }
 
-export function clearEventDetails(): void {
+export function clearEventDetails(keepDaySelected: boolean = false): void {
 	setSelectedEvent(null);
-	document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+	if (!keepDaySelected) {
+		document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
+	}
 	document.getElementById('eventDetailContent')!.textContent = '';
 	document.getElementById('eventDetailView')!.style.display = 'none';
 	document.getElementById('upcomingEventsView')!.style.display = 'block';

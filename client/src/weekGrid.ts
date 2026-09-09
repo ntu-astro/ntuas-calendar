@@ -1,16 +1,14 @@
 import type { ApiEvent } from './api-types.js';
-import { STATE, eventsData, currentVisibleMonth, setCurrentVisibleMonth, setMiniCalDate } from './state.js';
 import {
-	sundayOfWeek,
-	thursdayOfWeek,
-	addWeeks,
-	getWeekKey,
-	getMonthKey,
-	monthKeyToDate,
-	formatMonthYear,
-	dtToDateStr,
-	parseDtstart,
-} from './dates.js';
+	STATE,
+	eventsData,
+	currentVisibleMonth,
+	setCurrentVisibleMonth,
+	setMiniCalDate,
+	selectedDateStr,
+	setSelectedDateStr,
+} from './state.js';
+import { sundayOfWeek, thursdayOfWeek, addWeeks, getWeekKey, getMonthKey, monthKeyToDate, dtToDateStr, parseDtstart } from './dates.js';
 import { showEventDetails, clearEventDetails } from './eventDetail.js';
 import { renderMiniCalendar } from './miniCal.js';
 import { getCategoryStyle, isCategoryVisible } from './categories.js';
@@ -95,6 +93,8 @@ export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent
 			e.stopPropagation();
 			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
 			dayEl.classList.add('selected');
+			setSelectedDateStr(dayEl.dataset.date || null);
+			renderMiniCalendar();
 			showEventDetails(evt);
 		});
 		dayEl.appendChild(chip);
@@ -103,6 +103,22 @@ export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent
 		const more = document.createElement('div');
 		more.className = 'event-chip-more';
 		more.textContent = `+${visible.length - 2} more`;
+		more.setAttribute('role', 'button');
+		more.setAttribute('tabindex', '0');
+		more.addEventListener('click', (e) => {
+			e.stopPropagation();
+			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
+			dayEl.classList.add('selected');
+			setSelectedDateStr(dayEl.dataset.date || null);
+			renderMiniCalendar();
+			showEventDetails(visible[0]);
+		});
+		more.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				more.click();
+			}
+		});
 		dayEl.appendChild(more);
 	}
 }
@@ -139,11 +155,13 @@ function createDayNumberElement(cellDate: Date, isToday: boolean): HTMLSpanEleme
 function handleDayCellClick(dayEl: HTMLDivElement): void {
 	document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
 	dayEl.classList.add('selected');
+	setSelectedDateStr(dayEl.dataset.date || null);
+	renderMiniCalendar();
 	const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
 	if (visible.length > 0) {
 		showEventDetails(visible[0]);
 	} else {
-		clearEventDetails();
+		clearEventDetails(true);
 	}
 }
 
@@ -180,6 +198,9 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	const currentDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
 	dayEl.dataset.date = currentDayStr;
 	const isToday = currentDayStr === todayStr;
+	if (selectedDateStr === currentDayStr) {
+		dayEl.classList.add('selected');
+	}
 
 	const numEl = createDayNumberElement(cellDate, isToday);
 	dayEl.appendChild(numEl);
@@ -390,7 +411,12 @@ function updateVisibleMonth(): void {
 		if (monthKey !== currentVisibleMonth) {
 			setCurrentVisibleMonth(monthKey);
 			const md = monthKeyToDate(monthKey);
-			document.getElementById('monthLabel')!.textContent = formatMonthYear(md);
+			const monthName = md.toLocaleString('default', { month: 'long' });
+			const yearStr = md.getFullYear();
+			const monthLabelEl = document.getElementById('monthLabel');
+			if (monthLabelEl) {
+				monthLabelEl.innerHTML = `<strong>${monthName}</strong> <span>${yearStr}</span>`;
+			}
 
 			document.querySelectorAll('.calendar-day[data-date-month]').forEach((el) => {
 				const cell = el as HTMLElement;

@@ -21,8 +21,8 @@ test.describe('Landing page — scroll anchoring', () => {
 			const contentTop = namesRow.getBoundingClientRect().bottom;
 			const area = document.getElementById('calendarArea')!.getBoundingClientRect();
 			const firstVisible = [...document.querySelectorAll('.week-row')]
-				.map(r => r.getBoundingClientRect())
-				.find(r => r.bottom > contentTop && r.top < area.bottom)!;
+				.map((r) => r.getBoundingClientRect())
+				.find((r) => r.bottom > contentTop && r.top < area.bottom)!;
 			return Math.round(contentTop - firstVisible.top);
 		});
 
@@ -93,24 +93,22 @@ test.describe('Landing page — accessibility', () => {
 
 	test('month navigation labels use consistent sentence case and unique pairs', async ({ page }) => {
 		await gotoFrozen(page);
-		const labels = await page.locator('[aria-label]').evaluateAll(els =>
-			els.map(e => e.getAttribute('aria-label') ?? ''),
-		);
-		const nav = labels.filter(l => /previous|next/i.test(l));
+		const labels = await page.locator('[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? ''));
+		const nav = labels.filter((l) => /previous|next/i.test(l));
 
 		// Two pairs of arrows: the main month nav and the mini-calendar nav.
 		expect(nav).toHaveLength(4);
 
 		// Sentence case: first letter uppercase, the rest lowercase.
-		const toSentence = (l: string): string => l.toLowerCase().replace(/^./, c => c.toUpperCase());
-		expect(nav.every(l => l === toSentence(l))).toBe(true);
+		const toSentence = (l: string): string => l.toLowerCase().replace(/^./, (c) => c.toUpperCase());
+		expect(nav.every((l) => l === toSentence(l))).toBe(true);
 
 		// The mini-calendar pair is uniquely labelled so screen-reader users can
 		// tell the two arrow pairs apart.
-		const prev = nav.filter(l => /previous/i.test(l));
-		const next = nav.filter(l => /next/i.test(l));
-		expect(new Set(prev.map(l => l.toLowerCase())).size).toBe(2);
-		expect(new Set(next.map(l => l.toLowerCase())).size).toBe(2);
+		const prev = nav.filter((l) => /previous/i.test(l));
+		const next = nav.filter((l) => /next/i.test(l));
+		expect(new Set(prev.map((l) => l.toLowerCase())).size).toBe(2);
+		expect(new Set(next.map((l) => l.toLowerCase())).size).toBe(2);
 	});
 });
 
@@ -118,13 +116,15 @@ test.describe('Landing page — keyboard', () => {
 	test('t returns to today', async ({ page }) => {
 		await gotoFrozen(page);
 		const area = page.locator('#calendarArea');
-		await area.evaluate(el => { el.scrollTop -= 900; });
-		const moved = await area.evaluate(el => el.scrollTop);
+		await area.evaluate((el) => {
+			el.scrollTop -= 900;
+		});
+		const moved = await area.evaluate((el) => el.scrollTop);
 
 		await page.keyboard.press('t');
 		await page.waitForTimeout(500);
 
-		expect(await area.evaluate(el => el.scrollTop)).not.toBe(moved);
+		expect(await area.evaluate((el) => el.scrollTop)).not.toBe(moved);
 		await expect(page.locator('#monthLabel')).toHaveText('September 2026');
 	});
 
@@ -148,12 +148,67 @@ test.describe('Landing page — keyboard', () => {
 	});
 });
 
+test.describe('Landing page — event chips', () => {
+	test('event chips have inset 3px left ribbon accent', async ({ page }) => {
+		await gotoFrozen(page);
+		const chip = page.locator('.event-chip').first();
+		await expect(chip).toHaveCSS('border-left-width', '3px');
+		await expect(chip).toHaveCSS('border-left-style', 'solid');
+	});
+});
+
+test.describe('Landing page — calendar tiles uniformity', () => {
+	test('weekday and weekend tiles share uniform background color', async ({ page }) => {
+		await gotoFrozen(page);
+		const weekday = page.locator('.calendar-day:not(.weekend-day):not(.selected)').first();
+		const weekend = page.locator('.calendar-day.weekend-day:not(.selected)').first();
+		const weekdayBg = await weekday.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		const weekendBg = await weekend.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(weekdayBg).toBe(weekendBg);
+	});
+});
+
 test.describe('Landing page — dark mode', () => {
-	test('dark mode follows the system preference', async ({ browser }) => {
+	test('dark mode follows the system preference with uniform dark tiles', async ({ browser }) => {
 		const ctx = await browser.newContext({ colorScheme: 'dark' });
 		const page = await ctx.newPage();
 		await gotoFrozen(page);
-		await expect(page.locator('body')).not.toHaveCSS('background-color', 'rgb(255, 255, 255)');
+		await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
+		const weekday = page.locator('.calendar-day:not(.weekend-day):not(.selected)').first();
+		const weekend = page.locator('.calendar-day.weekend-day:not(.selected)').first();
+		const weekdayBg = await weekday.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		const weekendBg = await weekend.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(weekdayBg).toBe('rgb(25, 25, 25)');
+		expect(weekendBg).toBe('rgb(25, 25, 25)');
 		await ctx.close();
+	});
+
+	test('dark mode applies when html has class dark', async ({ page }) => {
+		await gotoFrozen(page);
+		await page.evaluate(() => document.documentElement.classList.add('dark'));
+		await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(25, 25, 25)');
+	});
+
+	test('captures reference screenshots for visual verification', async ({ browser }) => {
+		// Light mode
+		const lightCtx = await browser.newContext({
+			viewport: { width: 1470, height: 859 },
+			deviceScaleFactor: 2,
+		});
+		const lightPage = await lightCtx.newPage();
+		await gotoFrozen(lightPage);
+		await lightPage.screenshot({ path: 'reference/updated-calendar-light.png' });
+		await lightCtx.close();
+
+		// Dark mode
+		const darkCtx = await browser.newContext({
+			colorScheme: 'dark',
+			viewport: { width: 1470, height: 859 },
+			deviceScaleFactor: 2,
+		});
+		const darkPage = await darkCtx.newPage();
+		await gotoFrozen(darkPage);
+		await darkPage.screenshot({ path: 'reference/updated-calendar-dark.png' });
+		await darkCtx.close();
 	});
 });

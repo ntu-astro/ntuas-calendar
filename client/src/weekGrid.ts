@@ -1,11 +1,5 @@
 import type { ApiEvent } from './api-types.js';
-import {
-	STATE,
-	eventsData,
-	currentVisibleMonth,
-	setCurrentVisibleMonth,
-	setMiniCalDate,
-} from './state.js';
+import { STATE, eventsData, currentVisibleMonth, setCurrentVisibleMonth, setMiniCalDate } from './state.js';
 import {
 	sundayOfWeek,
 	thursdayOfWeek,
@@ -15,6 +9,7 @@ import {
 	monthKeyToDate,
 	formatMonthYear,
 	dtToDateStr,
+	parseDtstart,
 } from './dates.js';
 import { showEventDetails, clearEventDetails } from './eventDetail.js';
 import { renderMiniCalendar } from './miniCal.js';
@@ -33,8 +28,6 @@ function getStickyOffset(): number {
 	if (!namesRow || !area) return 0;
 	return Math.round(namesRow.getBoundingClientRect().bottom - area.getBoundingClientRect().top);
 }
-
-
 
 export function insertWeekRowSorted(row: HTMLDivElement, weekKey: string): void {
 	const container = document.getElementById('scrollContainer')!;
@@ -55,7 +48,7 @@ export function insertWeekRowSorted(row: HTMLDivElement, weekKey: string): void 
 
 export function getVisibleEventsForDate(dateStr: string | null): ApiEvent[] {
 	if (!dateStr) return [];
-	return eventsData.filter(e => {
+	return eventsData.filter((e) => {
 		if (!e.dtstart) return false;
 		if (dtToDateStr(e.dtstart) !== dateStr) return false;
 		return isCategoryVisible(e);
@@ -63,23 +56,44 @@ export function getVisibleEventsForDate(dateStr: string | null): ApiEvent[] {
 }
 
 export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent[]): void {
-	dayEl.querySelectorAll('.event-chip, .event-chip-more').forEach(el => el.remove());
+	dayEl.querySelectorAll('.event-chip, .event-chip-more').forEach((el) => el.remove());
 	const visible = allDayEvents.filter(isCategoryVisible);
 	if (visible.length === 0) {
 		dayEl.classList.remove('has-event');
 		return;
 	}
 	dayEl.classList.add('has-event');
-	visible.slice(0, 2).forEach(evt => {
+	visible.slice(0, 2).forEach((evt) => {
 		const chip = document.createElement('div');
 		chip.className = 'event-chip';
 		const style = getCategoryStyle(evt);
-		chip.style.background = style.colorLight;
-		chip.style.color = style.color;
-		chip.textContent = evt.summary || 'Event';
+		chip.style.setProperty('--chip-ribbon-color', style.color);
+		chip.style.setProperty('--chip-bg-light', style.colorLight);
+		chip.style.setProperty('--chip-fg-light', style.color);
+
+		const titleEl = document.createElement('div');
+		titleEl.className = 'event-chip-title';
+		titleEl.textContent = evt.summary || 'Event';
+		chip.appendChild(titleEl);
+
+		if (evt.dtstart && evt.dtstart.includes('T')) {
+			const parsed = parseDtstart(evt.dtstart);
+			if (parsed) {
+				const timeEl = document.createElement('div');
+				timeEl.className = 'event-chip-time';
+				const minutes = parsed.getMinutes();
+				timeEl.textContent = parsed.toLocaleTimeString('en-US', {
+					hour: 'numeric',
+					minute: minutes === 0 ? undefined : '2-digit',
+					hour12: true,
+				});
+				chip.appendChild(timeEl);
+			}
+		}
+
 		chip.addEventListener('click', (e) => {
 			e.stopPropagation();
-			document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+			document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
 			dayEl.classList.add('selected');
 			showEventDetails(evt);
 		});
@@ -94,10 +108,10 @@ export function applyDayEventChips(dayEl: HTMLDivElement, allDayEvents: ApiEvent
 }
 
 export function refreshAllDayChips(): void {
-	document.querySelectorAll('.calendar-day[data-date]').forEach(el => {
+	document.querySelectorAll('.calendar-day[data-date]').forEach((el) => {
 		const dayEl = el as HTMLDivElement;
 		const dateStr = dayEl.dataset.date || '';
-		const dayEvents = eventsData.filter(e => e.dtstart && dtToDateStr(e.dtstart) === dateStr);
+		const dayEvents = eventsData.filter((e) => e.dtstart && dtToDateStr(e.dtstart) === dateStr);
 		applyDayEventChips(dayEl, dayEvents);
 	});
 }
@@ -123,7 +137,7 @@ function createDayNumberElement(cellDate: Date, isToday: boolean): HTMLSpanEleme
 }
 
 function handleDayCellClick(dayEl: HTMLDivElement): void {
-	document.querySelectorAll('.calendar-day.selected').forEach(el => el.classList.remove('selected'));
+	document.querySelectorAll('.calendar-day.selected').forEach((el) => el.classList.remove('selected'));
 	dayEl.classList.add('selected');
 	const visible = getVisibleEventsForDate(dayEl.dataset.date || null);
 	if (visible.length > 0) {
@@ -138,9 +152,14 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	const dayEl = document.createElement('div') as HTMLDivElement;
 	dayEl.className = 'calendar-day';
 	dayEl.setAttribute('role', 'gridcell');
-	dayEl.setAttribute('aria-label', cellDate.toLocaleDateString('en-GB', {
-		day: 'numeric', month: 'long', year: 'numeric',
-	}));
+	dayEl.setAttribute(
+		'aria-label',
+		cellDate.toLocaleDateString('en-GB', {
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric',
+		}),
+	);
 	dayEl.tabIndex = -1; // roving tabindex; Task 10 moves focus between cells
 
 	if (d === 0 || d === 6) {
@@ -165,7 +184,7 @@ function renderDayCell(cellDate: Date, sundayDate: Date, ownerMonthKey: string, 
 	const numEl = createDayNumberElement(cellDate, isToday);
 	dayEl.appendChild(numEl);
 
-	const dayEvents = eventsData.filter(e => {
+	const dayEvents = eventsData.filter((e) => {
 		if (!e.dtstart) return false;
 		return dtToDateStr(e.dtstart) === currentDayStr;
 	});
@@ -316,20 +335,23 @@ export function removeWeek(weekKey: string): void {
 
 export function setupSentinelObserver(): void {
 	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const observer = new IntersectionObserver((entries) => {
-		for (const entry of entries) {
-			if (!entry.isIntersecting) continue;
-			if (entry.target.id === 'sentinelBottom') {
-				appendWeeks(8);
-			} else if (entry.target.id === 'sentinelTop') {
-				prependWeeks(8);
+	const observer = new IntersectionObserver(
+		(entries) => {
+			for (const entry of entries) {
+				if (!entry.isIntersecting) continue;
+				if (entry.target.id === 'sentinelBottom') {
+					appendWeeks(8);
+				} else if (entry.target.id === 'sentinelTop') {
+					prependWeeks(8);
+				}
 			}
-		}
-	}, {
-		root: scrollArea,
-		rootMargin: '200px 0px',
-		threshold: 0,
-	});
+		},
+		{
+			root: scrollArea,
+			rootMargin: '200px 0px',
+			threshold: 0,
+		},
+	);
 
 	observer.observe(document.getElementById('sentinelTop')!);
 	observer.observe(document.getElementById('sentinelBottom')!);
@@ -370,7 +392,7 @@ function updateVisibleMonth(): void {
 			const md = monthKeyToDate(monthKey);
 			document.getElementById('monthLabel')!.textContent = formatMonthYear(md);
 
-			document.querySelectorAll('.calendar-day[data-date-month]').forEach(el => {
+			document.querySelectorAll('.calendar-day[data-date-month]').forEach((el) => {
 				const cell = el as HTMLElement;
 				cell.classList.toggle('other-month-day', cell.dataset.dateMonth !== monthKey);
 			});
@@ -385,12 +407,16 @@ export function setupMonthHeaderObserver(): void {
 	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
 	if (!scrollArea) return;
 
-	scrollArea.addEventListener('scroll', () => {
-		if (!headerRafPending) {
-			headerRafPending = true;
-			requestAnimationFrame(updateVisibleMonth);
-		}
-	}, { passive: true });
+	scrollArea.addEventListener(
+		'scroll',
+		() => {
+			if (!headerRafPending) {
+				headerRafPending = true;
+				requestAnimationFrame(updateVisibleMonth);
+			}
+		},
+		{ passive: true },
+	);
 
 	STATE.updateVisibleMonth = updateVisibleMonth;
 	updateVisibleMonth();
@@ -411,7 +437,9 @@ export function scrollToDate(targetDate: Date, _behavior?: ScrollBehavior): void
 	let weekEl = STATE.weekElements.get(weekKey);
 
 	const scrollArea = document.getElementById('calendarArea') as HTMLDivElement;
-	const canSmoothScroll = weekEl && Math.abs(weekEl.offsetTop - getStickyOffset() - scrollArea.scrollTop) < scrollArea.clientHeight * SMOOTH_SCROLL_VIEWPORT_RATIO;
+	const canSmoothScroll =
+		weekEl &&
+		Math.abs(weekEl.offsetTop - getStickyOffset() - scrollArea.scrollTop) < scrollArea.clientHeight * SMOOTH_SCROLL_VIEWPORT_RATIO;
 
 	if (weekEl && canSmoothScroll) {
 		scrollWeekIntoView(weekEl, 'smooth');

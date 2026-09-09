@@ -43,8 +43,8 @@
 
             /* Surfaces */
             --color-canvas: #ffffff;
-            --color-surface: #f6f5f4;
-            --color-surface-soft: #fafaf9;
+            --color-surface: #f8f8f7;         /* Notion --nds-surface-wash */
+            --color-surface-soft: #ffffff;   /* Notion elevated surface */
             --color-hairline: #e5e3df;
             --color-hairline-soft: #ede9e4;
             --color-hairline-strong: #c8c4be;
@@ -85,9 +85,9 @@
             --radius-full: 9999px;
 
             /* Notion Calendar alignment */
-            --today-red: #f04842;
-            --grid-line: #ececec;         /* Notion rgb(236,236,236) */
-            --weekend-tint: #fcfcfc;      /* Notion rgb(252,252,252) */
+            --today-red: #f15550;
+            --grid-line: #eeeeee;                    /* Notion rgb(238,238,238) */
+            --weekend-tint: var(--color-canvas);      /* Uniform calendar tiles across all days */
 
             --left-sidebar-width: 240px;
             --mini-cal-cell: 28px;
@@ -106,8 +106,49 @@
            (its --nds-* and --public-* tokens plus rendered inline styles). Only the
            tokens that change are redefined; aliases and shared semantic tokens
            resolve through these primitives automatically. */
+        :root.dark,
+        html.dark {
+            /* Accent / primary — Notion dark-mode link blue */
+            --color-primary: #348de4;
+            --color-primary-pressed: #0076db;
+            --link-blue: #348de4;
+            --link-blue-pressed: #0076db;
+
+            /* Surfaces */
+            --color-canvas: #191919;         /* page background: --nds-surface-contr-page */
+            --color-surface: #202020;        /* sidebar/wash: --nds-surface-contr-wash */
+            --color-surface-soft: #252525;   /* elevated surface: --nds-surface-contr-elevated */
+
+            /* Borders */
+            --color-hairline: rgba(255, 255, 255, 0.13);
+            --color-hairline-soft: rgba(255, 255, 255, 0.055);
+            --color-hairline-strong: #4d4d4d;
+
+            /* Text hierarchy */
+            --color-ink: #ffffff;
+            --color-charcoal: rgba(255, 255, 255, 0.81);
+            --color-slate: rgba(255, 255, 255, 0.565);
+            --color-steel: rgba(255, 255, 255, 0.445);
+            --color-stone: rgba(255, 255, 255, 0.283);
+            --color-muted: rgba(255, 255, 255, 0.13);
+
+            /* Hover / grid / weekend */
+            --bg-hover: rgba(255, 255, 255, 0.095);
+            --grid-line: #222222;            /* Notion --layout-line-grid-v */
+            --weekend-tint: var(--color-canvas); /* Uniform calendar tiles in dark mode */
+
+            /* Pastel selection/chip tints → dark elevated equivalents */
+            --tint-peach: rgba(233, 126, 37, 0.2);
+            --tint-rose: rgba(220, 76, 145, 0.22);
+            --tint-mint: rgba(45, 153, 100, 0.2);
+            --tint-lavender: rgba(155, 97, 211, 0.18);
+            --tint-sky: rgba(51, 126, 169, 0.2);
+            --tint-yellow: rgba(179, 129, 61, 0.2);
+            --tint-cream: rgba(184, 101, 69, 0.25);
+        }
+
         @media (prefers-color-scheme: dark) {
-            :root {
+            :root:not(.light) {
                 /* Accent / primary — Notion dark-mode link blue */
                 --color-primary: #348de4;
                 --color-primary-pressed: #0076db;
@@ -134,8 +175,8 @@
 
                 /* Hover / grid / weekend */
                 --bg-hover: rgba(255, 255, 255, 0.095);
-                --grid-line: #303030;
-                --weekend-tint: #202020;
+                --grid-line: #222222;
+                --weekend-tint: var(--color-canvas);
 
                 /* Pastel selection/chip tints → dark elevated equivalents */
                 --tint-peach: rgba(233, 126, 37, 0.2);
@@ -306,7 +347,7 @@
             color: var(--color-ink);
         }
 
-        /* DESIGN.md button-primary — signature purple rectangular CTA */
+        /* Notion-aligned button-primary CTA */
         .btn-subscribe {
             display: inline-flex;
             align-items: center;
@@ -314,10 +355,10 @@
             background: var(--color-primary);
             color: var(--on-primary);
             border: none;
-            border-radius: var(--radius-md);
-            padding: 0 18px;
-            height: 32px;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            padding: 0 14px;
+            height: 30px;
+            font-size: 13px;
             font-weight: 500;
             font-family: inherit;
             text-decoration: none;
@@ -331,7 +372,7 @@
             background: var(--color-primary-pressed);
         }
 
-        /* DESIGN.md button-secondary — outlined for Copy URL */
+        /* Notion-aligned button-secondary — outlined for Copy URL */
         .btn-copy {
             display: inline-flex;
             align-items: center;
@@ -339,10 +380,10 @@
             background: transparent;
             color: var(--color-charcoal);
             border: 1px solid var(--color-hairline-strong);
-            border-radius: var(--radius-md);
-            padding: 0 14px;
-            height: 32px;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            padding: 0 12px;
+            height: 30px;
+            font-size: 13px;
             font-weight: 500;
             font-family: inherit;
             cursor: pointer;
@@ -733,6 +774,7 @@
 
         /* ─── CALENDAR DAY ─── */
         .calendar-day {
+            background: var(--color-canvas);
             padding: 7px;
             border-bottom: 1px solid var(--grid-line);
             border-right: 1px solid var(--grid-line);
@@ -796,6 +838,7 @@
         .day-number.first-of-month,
         .today-marker.first-of-month {
             color: var(--color-ink);
+            gap: 4px;
         }
 
         .first-of-month .fom-month {
@@ -804,40 +847,81 @@
 
         .first-of-month .fom-day {
             font-weight: 400;
+            margin-left: 2px;
         }
 
-        /* Today badge — DESIGN.md semantic-error red, rounded.sm */
+        /* Today badge — Notion circular red indicator */
         .today-marker {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 5px;
-            border-radius: var(--radius-sm);
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 11px;
             background: var(--today-red);
-            color: var(--on-primary);
-            font-weight: 500;
+            color: #ffffff;
+            font-weight: 600;
             font-size: 13px;
             line-height: 1;
             margin-bottom: 4px;
             align-self: flex-end;
         }
 
-        /* DESIGN.md badge-tag — soft pastel chip with strong category-toned text */
+        .today-marker.first-of-month {
+            border-radius: 11px;
+            padding: 0 8px;
+        }
+
+        /* Notion-aligned event-chip with 3px solid left ribbon accent */
         .event-chip {
             font-size: 11px;
-            padding: 2px 6px;
-            background: var(--tint-sky);
-            color: var(--color-charcoal);
-            border-radius: var(--radius-sm);
+            padding: 2px 6px 2px 8px;
+            background: var(--chip-bg, var(--chip-bg-light, var(--tint-sky)));
+            color: var(--chip-fg, var(--color-charcoal));
+            border-left: 3px solid var(--chip-ribbon-color, var(--color-primary));
+            border-radius: var(--radius-xs);
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             margin-top: 2px;
-            line-height: 1.4;
+            line-height: 1.3;
             font-weight: 500;
             letter-spacing: -0.005em;
+            cursor: pointer;
+            box-sizing: border-box;
+            box-shadow: 0 0 0 1px var(--color-canvas);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .event-chip-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.3;
+        }
+
+        .event-chip-time {
+            font-size: 10px;
+            color: var(--color-steel);
+            font-weight: 400;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not(.light) .event-chip {
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--color-charcoal);
+            }
+        }
+        :root.dark .event-chip,
+        html.dark .event-chip {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--color-charcoal);
         }
 
         .event-chip-more {

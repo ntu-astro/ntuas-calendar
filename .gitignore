@@ -188,3 +188,7 @@ docs/superpowers/
 
 # Compiled client bundle (output of `npm run build:client`)
 public/dist/
+
+# Local reference captures & dumps
+reference/
+

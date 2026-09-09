@@ -822,16 +822,17 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 20px;
-            height: 20px;
-            padding: 0 5px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
             border-radius: var(--radius-sm);
             background: transparent;
             transition: background 0.12s;
+            cursor: pointer;
         }
 
-        /* Notion highlights the day number on hover, not the whole cell */
-        .calendar-day:hover .day-number {
+        /* Notion highlights the day number only when hovering near/on the day number, not when hovering anywhere on the cell */
+        .day-number:hover {
             background: var(--bg-hover);
         }
 

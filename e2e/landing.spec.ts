@@ -168,6 +168,26 @@ test.describe('Landing page — calendar tiles uniformity', () => {
 	});
 });
 
+test.describe('Landing page — day hover behaviour', () => {
+	test('hovering day cell body does not highlight day number; only hovering near day number highlights it', async ({ page }) => {
+		await gotoFrozen(page);
+		const cell = page.locator('.calendar-day:not(.other-month-day):not(.weekend-day)').first();
+		const num = cell.locator('.day-number');
+
+		// 1. Hover near the bottom of the cell (away from day number)
+		await cell.hover({ position: { x: 20, y: 70 } });
+		await page.waitForTimeout(150);
+		const bgBottom = await num.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(bgBottom).toBe('rgba(0, 0, 0, 0)');
+
+		// 2. Hover directly on day number
+		await num.hover();
+		await page.waitForTimeout(150);
+		const bgNum = await num.evaluate((el) => window.getComputedStyle(el).backgroundColor);
+		expect(bgNum).not.toBe('rgba(0, 0, 0, 0)');
+	});
+});
+
 test.describe('Landing page — dark mode', () => {
 	test('dark mode follows the system preference with uniform dark tiles', async ({ browser }) => {
 		const ctx = await browser.newContext({ colorScheme: 'dark' });
